@@ -1,50 +1,203 @@
-# Welcome to your Expo app 👋
+# Pharmacy Mobile App 💊
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A modern React Native mobile application built with Expo for managing pharmaceutical services. Users can order medicines, consult with healthcare professionals, and manage their health conveniently.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Onboarding Flow**: Beautiful animated onboarding screens with smooth transitions
+- **Authentication**: Secure login and registration system
+- **Theme System**: Customizable light/dark mode with primary color (#272EA7)
+- **Responsive UI**: Mobile-first design with reusable components
+- **Modern Components**: Button, Input, and other UI components with consistent styling
+
+## Tech Stack
+
+- **Framework**: React Native with Expo
+- **Navigation**: Expo Router (file-based routing)
+- **Styling**: React Native StyleSheet with custom theme system
+- **Storage**: AsyncStorage + Secure Store for data persistence
+- **Icons**: Expo Vector Icons (Ionicons)
+
+## Project Structure
+
+```
+src/
+├── app/                 # Navigation & routing
+│   ├── (auth)/         # Authentication routes
+│   ├── (tabs)/         # Main app routes
+│   ├── onboarding.tsx  # Onboarding screen
+│   ├── index.tsx       # Entry point with bootstrap logic
+│   └── _layout.tsx     # Root layout
+├── core/               # Core functionality
+│   ├── api/           # API client setup
+│   ├── auth/          # Authentication logic
+│   ├── hooks/         # Custom hooks
+│   ├── providers/     # Context providers
+│   ├── socket/        # WebSocket connections
+│   └── storage/       # Storage management
+├── features/          # Feature modules
+│   ├── authentication/
+│   ├── onboarding/
+│   └── ...
+├── shared/            # Shared resources
+│   ├── components/    # Reusable components
+│   ├── constants/     # App constants & theme
+│   └── hooks/         # Shared hooks
+└── utils/             # Utility functions
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v16 or higher)
+- npm or yarn
+- Expo CLI
+
+### Installation
+
+1. Install dependencies:
 
    ```bash
    npm install
    ```
 
-2. Start the app
-
+2. Install additional packages if needed:
    ```bash
-   npx expo start
+   npm install expo-secure-store
    ```
 
-In the output, you'll find options to open the app in a
+### Running the App
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+Start the development server:
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+```bash
+npm start
+```
 
-## Get a fresh project
+Then open the app in:
 
-When you're ready, run:
+- **Expo Go**: Scan the QR code with Expo Go app
+- **Android Emulator**: Press `a`
+- **iOS Simulator**: Press `i`
+- **Web**: Press `w`
+
+## Theme System
+
+The app uses a centralized theme system with customizable colors:
+
+```typescript
+Colors = {
+  primary: "#272EA7",
+  text: "#030303",
+  background: "#FFFFFF",
+  inputBackground: "#F5F5F5",
+  placeholder: "#8F90A4",
+};
+```
+
+Access theme colors in components:
+
+```typescript
+const { colors } = Colors[colorScheme ?? "light"];
+```
+
+## Key Components
+
+### Button
+
+Versatile button component with multiple variants:
+
+- **Primary**: Theme color background
+- **Secondary**: Bordered style
+- **Outline**: Transparent with border
+
+### Input
+
+Form input with built-in validation:
+
+- Theme-aware styling
+- Label support
+- Error messages
+- Icon support
+
+### DotIndicator
+
+Beautiful animated dot indicator for carousels and onboarding.
+
+## Development
+
+### File Structure
+
+- `src/app/`: Navigation routes
+- `src/features/`: Feature-specific code
+- `src/shared/`: Reusable components and utilities
+- `src/core/`: Core app functionality
+
+### Adding New Features
+
+1. Create feature folder in `src/features/`
+2. Structure: `components/`, `hooks/`, `services/`, `types/`, `utils/`
+3. Import and use in routes
+
+### Styling
+
+- Use StyleSheet from React Native
+- Access theme colors from `Colors` constant
+- Create responsive designs using flexbox
+
+## Build & Deployment
+
+### EAS Build
+
+Build for production:
+
+```bash
+eas build --platform ios
+eas build --platform android
+```
+
+### Deployment
+
+Configure in `eas.json` and deploy to app stores.
+
+## Environment Setup
+
+Create `.env` file with API endpoints:
+
+```
+EXPO_PUBLIC_API_URL=your_api_url
+EXPO_PUBLIC_SOCKET_URL=your_socket_url
+```
+
+## Troubleshooting
+
+### Port Already in Use
+
+If port 8081 is busy, Expo will prompt to use 8082 instead.
+
+### Clear Cache
+
+```bash
+npm start --clear
+```
+
+### Reset Project
 
 ```bash
 npm run reset-project
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Learn More
 
-## Learn more
+- [Expo Documentation](https://docs.expo.dev/)
+- [React Native Docs](https://reactnative.dev/)
+- [Expo Router Guide](https://docs.expo.dev/router/introduction/)
 
-To learn more about developing your project with Expo, look at the following resources:
+## Support
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+For issues or questions, please check the project documentation or contact the development team.
 
-## Join the community
+---
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Happy coding! 🚀

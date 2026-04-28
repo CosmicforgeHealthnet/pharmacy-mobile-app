@@ -44,6 +44,8 @@ export function Input({
                   background: colors.inputBackground,
                   text: colors.text,
                   placeholder: colors.placeholder,
+                  onSurfaceVariant: colors.text,
+                  onSurface: colors.text,
                   error: "#EF4444",
                },
             }}

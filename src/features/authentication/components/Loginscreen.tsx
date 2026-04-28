@@ -2,9 +2,12 @@ import { ThemedText } from '@/shared/components/themed-text';
 import { ThemedView } from '@/shared/components/themed-view';
 import { Button } from '@/shared/components/ui/Button';
 import { Checkbox } from '@/shared/components/ui/Checkbox';
+import { AppAlert } from '@/shared/components/ui/Dialog';
 import { Input } from '@/shared/components/ui/Input';
+import { AppSnackbar } from '@/shared/components/ui/Snackbar';
 import { Colors } from '@/shared/constants/theme';
 import { useColorScheme } from '@/shared/hooks/use-color-scheme';
+import { Image as ExpoImage } from 'expo-image';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -18,18 +21,18 @@ import {
     View,
 } from 'react-native';
 
-import { Portal, Dialog, Button as PaperButton } from 'react-native-paper';
-
-// ─── Google Icon ─────────────────────────────────────
+// ─── Google Icon ──────────────────────────────────────
 function GoogleIcon() {
     return (
-        <View style={styles.googleIconWrapper}>
-            <Text style={styles.googleG}>G</Text>
-        </View>
+        <ExpoImage
+            source={require('@/assets/icons/google-icon.svg')}
+            style={{ width: 20, height: 20 }}
+            contentFit="contain"
+        />
     );
 }
 
-// ─── Or Divider ─────────────────────────────────────
+// ─── Or Divider ───────────────────────────────────────
 function OrDivider() {
     return (
         <View style={styles.divider}>
@@ -40,7 +43,7 @@ function OrDivider() {
     );
 }
 
-// ─── LOGIN SCREEN ───────────────────────────────────
+// ─── LOGIN SCREEN ─────────────────────────────────────
 export function LoginScreen() {
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
@@ -51,10 +54,14 @@ export function LoginScreen() {
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
-    // 🔥 ALERT STATE
+    // ── Alert state ───────────────────────────────────
     const [alertVisible, setAlertVisible] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
+
+    // ── Snackbar state ────────────────────────────────
+    const [snackVisible, setSnackVisible] = useState(false);
+    const [snackMessage, setSnackMessage] = useState('');
 
     const showAlert = (title: string, message: string) => {
         setAlertTitle(title);
@@ -62,6 +69,12 @@ export function LoginScreen() {
         setAlertVisible(true);
     };
 
+    const showSnack = (message: string) => {
+        setSnackMessage(message);
+        setSnackVisible(true);
+    };
+
+    // ── Handlers ─────────────────────────────────────
     const handleLogin = async () => {
         if (!email || !password) {
             showAlert('Error', 'Please enter your email and password.');
@@ -69,19 +82,18 @@ export function LoginScreen() {
         }
 
         setLoading(true);
-
         try {
             await new Promise((resolve) => setTimeout(resolve, 1500));
             router.replace('/(tabs)');
         } catch {
-            showAlert('Login Failed', 'Invalid credentials. Please try again.');
+            showSnack('Invalid credentials. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
     const handleGoogleLogin = () => {
-        showAlert('Google Sign-In', 'Coming soon!');
+        showSnack('Google Sign-In coming soon!');
     };
 
     return (
@@ -107,7 +119,6 @@ export function LoginScreen() {
                     <ThemedText type="title" style={styles.heading}>
                         Log In!
                     </ThemedText>
-
                     <ThemedText style={styles.subheading}>
                         Welcome back.
                     </ThemedText>
@@ -163,64 +174,62 @@ export function LoginScreen() {
                         disabled={loading}
                     />
 
-                    <OrDivider />
+                    {/* <OrDivider /> */}
 
-                    {/* Google */}
+                    {/* Google
                     <TouchableOpacity
-                        style={styles.googleButton}
+                        style={[
+                            styles.googleButton,
+                            { borderColor: colorScheme === 'dark' ? '#3A3A3A' : '#E5E7EB' },
+                        ]}
                         onPress={handleGoogleLogin}
                     >
                         <GoogleIcon />
                         <ThemedText style={styles.googleButtonText}>
                             Continue with Google
                         </ThemedText>
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
 
-                    {/* Sign up */}
+                    {/* Sign Up */}
                     <View style={styles.signUpRow}>
-                        <ThemedText style={styles.signUpText}>
+                        <ThemedText style={[styles.signUpText, { color: colors.placeholder }]}>
                             Don&apos;t have an account?{' '}
                         </ThemedText>
-
-                        <TouchableOpacity>
+                        <TouchableOpacity onPress={() => router.push('/(auth)/register' as any)}>
                             <ThemedText
                                 type="link"
                                 style={[styles.signUpLink, { color: colors.primary }]}
                             >
-                                Sign
+                                Sign Up
                             </ThemedText>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
 
-            {/* ─── ALERT (PAPER DIALOG) ─── */}
-            <Portal>
-                <Dialog visible={alertVisible} onDismiss={() => setAlertVisible(false)}>
-                    <Dialog.Title>{alertTitle}</Dialog.Title>
+            {/* ── Alert ── */}
+            <AppAlert
+                visible={alertVisible}
+                title={alertTitle}
+                message={alertMessage}
+                onConfirm={() => setAlertVisible(false)}
+                onCancel={() => setAlertVisible(false)}
+            />
 
-                    <Dialog.Content>
-                        <Text>{alertMessage}</Text>
-                    </Dialog.Content>
-
-                    <Dialog.Actions>
-                        <PaperButton onPress={() => setAlertVisible(false)}>
-                            OK
-                        </PaperButton>
-                    </Dialog.Actions>
-                </Dialog>
-            </Portal>
+            {/* ── Snackbar ── */}
+            <AppSnackbar
+                visible={snackVisible}
+                message={snackMessage}
+                onDismiss={() => setSnackVisible(false)}
+            />
         </ThemedView>
     );
 }
-// ─── Styles ───────────────────────────────────────────────────────────────────
+
+// ─── Styles ───────────────────────────────────────────
 const styles = StyleSheet.create({
-    root: {
-        flex: 1,
-    },
-    flex: {
-        flex: 1,
-    },
+    root: { flex: 1 },
+    flex: { flex: 1 },
     scroll: {
         flexGrow: 1,
         paddingHorizontal: 24,
@@ -228,72 +237,32 @@ const styles = StyleSheet.create({
         paddingBottom: 32,
     },
 
-    // Back
-    backButton: {
-        marginBottom: 16,
-        alignSelf: 'flex-start',
-    },
-    backArrow: {
-        fontSize: 22,
-    },
+    logoContainer: { alignItems: 'center', marginBottom: 28 },
+    logo: { width: 170, height: 48 },
 
-    // Logo
-    logoContainer: {
-        alignItems: 'center',
-        marginBottom: 28,
-    },
-    logo: {
-        width: 170,
-        height: 48,
-    },
+    heading: { marginBottom: 4 },
+    subheading: { fontSize: 14, marginBottom: 28 },
 
-    // Heading
-    heading: {
-        marginBottom: 4,
-    },
-    subheading: {
-        fontSize: 14,
-        marginBottom: 28,
-    },
+    form: { gap: 4 },
 
-    // Form
-    form: {
-        gap: 4,
-    },
-
-    // Forgot password
     forgotContainer: {
         alignSelf: 'flex-end',
         marginTop: -8,
         marginBottom: 12,
     },
-    forgotText: {
-        fontSize: 14,
-    },
+    forgotText: { fontSize: 14 },
 
-    // Spacer
-    spacer: {
-        minHeight: 40,
-    },
+    spacer: { minHeight: 40 },
 
-    // Divider
     divider: {
         flexDirection: 'row',
         alignItems: 'center',
         marginVertical: 20,
         gap: 10,
     },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: '#E5E7EB',
-    },
-    dividerText: {
-        fontSize: 13,
-        color: '#8F90A4',
-    },
+    dividerLine: { flex: 1, height: 1, backgroundColor: '#E5E7EB' },
+    dividerText: { fontSize: 13, color: '#8F90A4' },
 
-    // Google button
     googleButton: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -304,35 +273,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         gap: 10,
     },
-    googleIconWrapper: {
-        width: 20,
-        height: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    googleG: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#4285F4',
-    },
-    googleButtonText: {
-        fontSize: 16,
-        fontWeight: '500',
-    },
+    googleButtonText: { fontSize: 16, fontWeight: '500' },
 
-    // Sign up
     signUpRow: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 20,
     },
-    signUpText: {
-        fontSize: 14,
-        color: '#8F90A4',
-    },
-    signUpLink: {
-        fontSize: 14,
-        fontWeight: '600',
-    },
+    signUpText: { fontSize: 14 },
+    signUpLink: { fontSize: 14, fontWeight: '600' },
 });
