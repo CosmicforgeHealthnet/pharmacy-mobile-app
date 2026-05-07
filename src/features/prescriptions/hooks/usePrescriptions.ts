@@ -158,7 +158,35 @@ export const useMarkReady = (prescriptionId: string) => {
 };
 
 /**
- * Complete prescription
+ * Initiate dispatch for delivery orders
+ */
+export const useInitiateDispatch = (prescriptionId: string) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (note?: string) => prescriptionService.initiateDispatch(prescriptionId, note),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: PRESCRIPTION_KEYS.detail(prescriptionId) });
+            queryClient.invalidateQueries({ queryKey: PRESCRIPTION_KEYS.all });
+        },
+    });
+};
+
+/**
+ * Mark prescription as delivered
+ */
+export const useMarkDelivered = (prescriptionId: string) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: () => prescriptionService.markDelivered(prescriptionId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: PRESCRIPTION_KEYS.detail(prescriptionId) });
+            queryClient.invalidateQueries({ queryKey: PRESCRIPTION_KEYS.all });
+        },
+    });
+};
+
+/**
+ * Complete prescription (for pickup)
  */
 export const useCompletePrescription = (prescriptionId: string) => {
     const queryClient = useQueryClient();
@@ -172,12 +200,12 @@ export const useCompletePrescription = (prescriptionId: string) => {
 };
 
 /**
- * Cancel prescription
+ * Cancel prescription with optional reason
  */
 export const useCancelPrescription = (prescriptionId: string) => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: () => prescriptionService.cancelPrescription(prescriptionId),
+        mutationFn: (reason?: string) => prescriptionService.cancelPrescription(prescriptionId, reason),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: PRESCRIPTION_KEYS.detail(prescriptionId) });
             queryClient.invalidateQueries({ queryKey: PRESCRIPTION_KEYS.all });

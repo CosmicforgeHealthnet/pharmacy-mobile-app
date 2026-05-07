@@ -105,7 +105,12 @@ function RecentTransactionRow({ transaction }: { transaction: Transaction }) {
             </View>
             {/* Status + Amount */}
             <View style={styles.txRight}>
-                <ThemedText style={[styles.txAmount, { color: isCredit ? '#10B981' : '#EF4444' }]}>
+                <ThemedText
+                    style={[styles.txAmount, { color: isCredit ? '#10B981' : '#EF4444' }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                >
                     {isCredit ? '+' : '-'}{formatCurrency(transaction.amount)}
                 </ThemedText>
                 <View style={[styles.txStatusBadge, { backgroundColor: `${getStatusColor(transaction.status)}15` }]}>
@@ -132,7 +137,8 @@ export function OverviewSection({
 
     // Fetch own transactions internally
     const { data: txData } = useWalletTransactions();
-    const transactions = txData?.transactions ?? [];
+    console.log("Wallet Transactions Data:", txData);
+    const transactions = txData ?? [];
 
     const formatCurrency = (amount: number) =>
         `₦${(amount || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -147,9 +153,9 @@ export function OverviewSection({
     });
 
     const availableBalance = walletSummary?.availableBalance || 0;
-    const escrowBalance = walletSummary?.escrowBalance || 0;
+    const pendingBalance = walletSummary?.pendingClearance || 0;
     const totalEarnings = walletSummary?.totalEarnings || 0;
-    const totalBalance = walletSummary?.totalBalance || availableBalance + escrowBalance;
+    const totalBalance = availableBalance + pendingBalance;
 
     return (
         <View style={styles.section}>
@@ -157,7 +163,7 @@ export function OverviewSection({
             <View style={styles.statsGrid}>
                 <StatCard label="Total Balance" value={formatCurrency(totalBalance)} sub="Wallet total" />
                 <StatCard label="Total Earnings" value={formatCurrency(totalEarnings)} sub="All time" />
-                <StatCard label="In Escrow" value={formatCurrency(escrowBalance)} sub="Clears in 1–3 days" />
+                <StatCard label="Pending" value={formatCurrency(pendingBalance)} sub="Clears in 1–3 days" />
                 <StatCard label="Available" value={formatCurrency(availableBalance)} sub="Ready for payout" highlight />
             </View>
 
@@ -301,6 +307,7 @@ const styles = StyleSheet.create({
     },
     txContent: {
         flex: 1,
+        minWidth: 0,
     },
     txDescription: {
         fontSize: 14,
@@ -312,10 +319,13 @@ const styles = StyleSheet.create({
     },
     txRight: {
         alignItems: 'flex-end',
+        flexShrink: 0,
+        maxWidth: '45%',
     },
     txAmount: {
         fontSize: 14,
         fontWeight: '700',
+        textAlign: 'right',
     },
     txStatusBadge: {
         paddingHorizontal: 8,

@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+    ActivityIndicator,
     Modal,
     RefreshControl,
     ScrollView,
@@ -24,14 +25,17 @@ import { EarningsSection } from './EarningsSection';
 import { PayoutsSection } from './PayoutsSection';
 import { DisputesSection } from './DisputesSection';
 import { TransactionsSection } from './TransactionsSection';
+import { BankAccountsSection } from './BankAccountsSection';
 import {
     useWalletSummary,
     useWalletPayouts,
     useWalletDisputes,
-    useRequestPayout
+    useRequestPayout,
+    useBankAccounts,
 } from '../hooks/useWallet';
+import type { BankAccount } from '../types';
 
-type WalletTab = 'overview' | 'earnings' | 'payouts' | 'disputes' | 'transactions';
+type WalletTab = 'overview' | 'earnings' | 'payouts' | 'bank_accounts' | 'disputes' | 'transactions';
 
 interface TabItem {
     key: WalletTab;
@@ -43,6 +47,7 @@ const TABS: TabItem[] = [
     { key: 'overview', label: 'Overview', icon: 'grid-outline' },
     { key: 'earnings', label: 'Earnings', icon: 'trending-up-outline' },
     { key: 'payouts', label: 'Payouts', icon: 'arrow-up-circle-outline' },
+    { key: 'bank_accounts', label: 'Bank Accounts', icon: 'card-outline' },
     { key: 'disputes', label: 'Disputes', icon: 'alert-circle-outline' },
     { key: 'transactions', label: 'History', icon: 'list-outline' },
 ];
@@ -57,19 +62,29 @@ export function WalletScreen() {
     const [isWithdrawModalVisible, setIsWithdrawModalVisible] = useState(false);
     const [withdrawAmount, setWithdrawAmount] = useState('');
     const [isBalanceVisible, setIsBalanceVisible] = useState(true);
+    const [selectedBankAccountId, setSelectedBankAccountId] = useState<string | null>(null);
+    const [isBankSelectVisible, setIsBankSelectVisible] = useState(false);
 
-    const { data: walletSummary, refetch: refetchSummary } = useWalletSummary();
-    const { data: payoutsData, refetch: refetchPayouts } = useWalletPayouts();
-    const { data: disputesData, refetch: refetchDisputes } = useWalletDisputes();
+    const { data: walletSummary, refetch: refetchSummary, isLoading: isLoadingSummary } = useWalletSummary();
+    const { data: payoutsData, refetch: refetchPayouts, isLoading: isLoadingPayouts } = useWalletPayouts();
+    const { data: disputesData, refetch: refetchDisputes, isLoading: isLoadingDisputes } = useWalletDisputes();
+    const { data: bankAccountsData, refetch: refetchBankAccounts, isLoading: isLoadingBankAccounts } = useBankAccounts();
 
+    const isLoading = isLoadingSummary || isLoadingPayouts || isLoadingDisputes || isLoadingBankAccounts;
+
+    const bankAccounts: BankAccount[] = bankAccountsData?.bankAccounts || bankAccountsData || [];
+    const defaultBankAccount = bankAccounts.find(acc => acc.isDefault);
+    const selectedBankAccount = bankAccounts.find(acc => acc.id === selectedBankAccountId) || defaultBankAccount;
+
+    // Use correct API field names: pendingClearance instead of escrowBalance
     const walletBalance = walletSummary?.availableBalance || 0;
-    const pendingBalance = walletSummary?.escrowBalance || 0;
+    const pendingBalance = walletSummary?.pendingClearance || 0;
 
     // Overview Stats
     const overviewStats: OverviewStats = {
         totalEarnings: walletSummary?.totalEarnings || 0,
         totalPayouts: payoutsData?.total || 0,
-        pendingPayouts: walletSummary?.escrowBalance || 0,
+        pendingPayouts: walletSummary?.pendingClearance || 0,
         totalTransactions: 0,
         activeDisputes: disputesData?.total || 0,
         resolvedDisputes: 0,
@@ -89,22 +104,25 @@ export function WalletScreen() {
             refetchSummary(),
             refetchPayouts(),
             refetchDisputes(),
+            refetchBankAccounts(),
         ]).finally(() => setRefreshing(false));
-    }, [refetchSummary, refetchPayouts, refetchDisputes]);
+    }, [refetchSummary, refetchPayouts, refetchDisputes, refetchBankAccounts]);
 
     const handleWithdraw = async () => {
         const amount = parseFloat(withdrawAmount.replace(/,/g, ''));
         if (!amount || isNaN(amount) || amount < 1000) return;
         if (amount > walletBalance) return;
+        if (!selectedBankAccount) return;
 
         try {
             await requestPayout({
                 amount,
-                bankAccountId: 'TODO_SELECT_BANK_ACCOUNT', 
+                bankAccountId: selectedBankAccount.id,
                 note: 'Mobile app withdrawal'
             });
             setIsWithdrawModalVisible(false);
             setWithdrawAmount('');
+            setSelectedBankAccountId(null);
         } catch (error) {
             console.error('Withdrawal failed', error);
         }
@@ -132,6 +150,8 @@ export function WalletScreen() {
                         onSeeAll={() => console.log('See all payouts')}
                     />
                 );
+            case 'bank_accounts':
+                return <BankAccountsSection />;
             case 'disputes':
                 return (
                     <DisputesSection />
@@ -156,6 +176,15 @@ export function WalletScreen() {
                 </TouchableOpacity>
             </View>
 
+            {/* Loading State */}
+            {isLoading && !refreshing ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <ThemedText style={[styles.loadingText, { color: colors.placeholder }]}>
+                        Loading wallet...
+                    </ThemedText>
+                </View>
+            ) : (
             <ScrollView
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollContent}
@@ -221,7 +250,10 @@ export function WalletScreen() {
                             </View>
                             <ThemedText style={styles.balanceActionText}>Withdraw</ThemedText>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.balanceActionButton}>
+                        <TouchableOpacity
+                            style={styles.balanceActionButton}
+                            onPress={() => setActiveTab('bank_accounts')}
+                        >
                             <View style={styles.balanceActionIconContainer}>
                                 <Ionicons name="card-outline" size={18} color="#272EA7" />
                             </View>
@@ -270,6 +302,7 @@ export function WalletScreen() {
 
                 <View style={{ height: 40 }} />
             </ScrollView>
+            )}
 
             {/* Withdraw Modal */}
             <Modal
@@ -297,14 +330,51 @@ export function WalletScreen() {
                                 Available: <ThemedText style={[styles.currentBalanceValue, { color: colors.text }]}>{formatCurrency(walletBalance)}</ThemedText>
                             </ThemedText>
 
-                            <ThemedText style={[styles.quickAmountsLabel, { color: colors.placeholder }]}>Quick Amounts</ThemedText>
+                            {/* Bank Account Selection */}
+                            <ThemedText style={[styles.inputLabel, { color: colors.text }]}>Withdraw To</ThemedText>
+                            {bankAccounts.length === 0 ? (
+                                <TouchableOpacity
+                                    style={[styles.noBankAccountBox, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+                                    onPress={() => {
+                                        setIsWithdrawModalVisible(false);
+                                        setActiveTab('bank_accounts');
+                                    }}
+                                >
+                                    <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
+                                    <ThemedText style={[styles.noBankAccountText, { color: colors.placeholder }]}>
+                                        Add a bank account first
+                                    </ThemedText>
+                                </TouchableOpacity>
+                            ) : (
+                                <TouchableOpacity
+                                    style={[styles.bankSelectButton, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+                                    onPress={() => setIsBankSelectVisible(true)}
+                                >
+                                    <View style={[styles.bankSelectIcon, { backgroundColor: colors.primary + '15' }]}>
+                                        <Ionicons name="business-outline" size={18} color={colors.primary} />
+                                    </View>
+                                    <View style={styles.bankSelectInfo}>
+                                        <ThemedText style={styles.bankSelectName}>
+                                            {selectedBankAccount?.bankName || 'Select Bank Account'}
+                                        </ThemedText>
+                                        {selectedBankAccount && (
+                                            <ThemedText style={[styles.bankSelectNumber, { color: colors.placeholder }]}>
+                                                ****{selectedBankAccount.accountNumber.slice(-4)} • {selectedBankAccount.accountName}
+                                            </ThemedText>
+                                        )}
+                                    </View>
+                                    <Ionicons name="chevron-down" size={20} color={colors.placeholder} />
+                                </TouchableOpacity>
+                            )}
+
+                            <ThemedText style={[styles.quickAmountsLabel, { color: colors.placeholder, marginTop: 16 }]}>Quick Amounts</ThemedText>
                             <View style={styles.quickAmountsGrid}>
                                 {[5000, 10000, 20000, 50000].map((amt) => (
                                     <TouchableOpacity
                                         key={amt}
                                         style={[
                                             styles.quickAmountButton,
-                                            { 
+                                            {
                                                 backgroundColor: withdrawAmount === amt.toString() ? colors.primary + '10' : colors.background,
                                                 borderColor: withdrawAmount === amt.toString() ? colors.primary : colors.border
                                             }
@@ -325,7 +395,7 @@ export function WalletScreen() {
                             <TextInput
                                 style={[
                                     styles.input,
-                                    { 
+                                    {
                                         backgroundColor: colors.inputBackground,
                                         color: colors.text,
                                         borderColor: colors.border,
@@ -339,14 +409,18 @@ export function WalletScreen() {
                                 keyboardType="numeric"
                             />
                             <ThemedText style={[styles.inputHint, { color: colors.placeholder }]}>
-                                Standard processing time is 1-3 business days.
+                                Minimum withdrawal: ₦1,000. Processing time: 1-3 business days.
                             </ThemedText>
                         </ScrollView>
 
                         <View style={[styles.modalFooter, { borderTopColor: colors.border }]}>
                             <TouchableOpacity
                                 style={[styles.cancelButton, { borderColor: colors.border }]}
-                                onPress={() => setIsWithdrawModalVisible(false)}
+                                onPress={() => {
+                                    setIsWithdrawModalVisible(false);
+                                    setWithdrawAmount('');
+                                    setSelectedBankAccountId(null);
+                                }}
                             >
                                 <ThemedText style={[styles.cancelButtonText, { color: colors.text }]}>Cancel</ThemedText>
                             </TouchableOpacity>
@@ -355,19 +429,74 @@ export function WalletScreen() {
                                     styles.proceedButton,
                                     {
                                         backgroundColor:
-                                            withdrawAmount && parseFloat(withdrawAmount) >= 1000 && !isRequestingPayout
+                                            withdrawAmount && parseFloat(withdrawAmount) >= 1000 && selectedBankAccount && !isRequestingPayout
                                                 ? colors.primary
                                                 : colors.inputBackground,
                                     },
                                 ]}
                                 onPress={handleWithdraw}
-                                disabled={!withdrawAmount || parseFloat(withdrawAmount) < 1000 || isRequestingPayout}
+                                disabled={!withdrawAmount || parseFloat(withdrawAmount) < 1000 || !selectedBankAccount || isRequestingPayout}
                             >
                                 <ThemedText style={styles.proceedButtonText}>
                                     {isRequestingPayout ? 'Processing...' : 'Request Payout'}
                                 </ThemedText>
                             </TouchableOpacity>
                         </View>
+                    </ThemedView>
+                </View>
+            </Modal>
+
+            {/* Bank Account Selection Modal */}
+            <Modal
+                visible={isBankSelectVisible}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setIsBankSelectVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <ThemedView style={[styles.modalContent, { maxHeight: '60%' }]}>
+                        <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+                            <ThemedText style={styles.modalTitle}>Select Bank Account</ThemedText>
+                            <TouchableOpacity onPress={() => setIsBankSelectVisible(false)}>
+                                <Ionicons name="close" size={24} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView style={styles.bankListScroll} showsVerticalScrollIndicator={false}>
+                            {bankAccounts.map((account) => (
+                                <TouchableOpacity
+                                    key={account.id}
+                                    style={[
+                                        styles.bankListItem,
+                                        { borderBottomColor: colors.border },
+                                        selectedBankAccount?.id === account.id && { backgroundColor: colors.primary + '10' }
+                                    ]}
+                                    onPress={() => {
+                                        setSelectedBankAccountId(account.id);
+                                        setIsBankSelectVisible(false);
+                                    }}
+                                >
+                                    <View style={[styles.bankListIcon, { backgroundColor: colors.primary + '15' }]}>
+                                        <Ionicons name="business-outline" size={18} color={colors.primary} />
+                                    </View>
+                                    <View style={styles.bankListInfo}>
+                                        <View style={styles.bankListNameRow}>
+                                            <ThemedText style={styles.bankListName}>{account.bankName}</ThemedText>
+                                            {account.isDefault && (
+                                                <View style={[styles.defaultTag, { backgroundColor: '#10B98115' }]}>
+                                                    <ThemedText style={styles.defaultTagText}>Default</ThemedText>
+                                                </View>
+                                            )}
+                                        </View>
+                                        <ThemedText style={[styles.bankListNumber, { color: colors.placeholder }]}>
+                                            ****{account.accountNumber.slice(-4)} • {account.accountName}
+                                        </ThemedText>
+                                    </View>
+                                    {selectedBankAccount?.id === account.id && (
+                                        <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
                     </ThemedView>
                 </View>
             </Modal>
@@ -378,6 +507,16 @@ export function WalletScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 16,
+    },
+    loadingText: {
+        fontSize: 14,
+        marginTop: 8,
     },
     header: {
         flexDirection: 'row',
@@ -624,6 +763,92 @@ const styles = StyleSheet.create({
     proceedButtonText: {
         color: '#FFFFFF',
         fontSize: 16,
+        fontWeight: '600',
+    },
+    // Bank Selection Styles
+    noBankAccountBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        padding: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        marginBottom: 8,
+    },
+    noBankAccountText: {
+        fontSize: 14,
+    },
+    bankSelectButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        marginBottom: 8,
+        gap: 12,
+    },
+    bankSelectIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    bankSelectInfo: {
+        flex: 1,
+    },
+    bankSelectName: {
+        fontSize: 15,
+        fontWeight: '600',
+        marginBottom: 2,
+    },
+    bankSelectNumber: {
+        fontSize: 13,
+    },
+    bankListScroll: {
+        paddingVertical: 8,
+    },
+    bankListItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+        gap: 12,
+    },
+    bankListIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    bankListInfo: {
+        flex: 1,
+    },
+    bankListNameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 2,
+    },
+    bankListName: {
+        fontSize: 15,
+        fontWeight: '600',
+    },
+    bankListNumber: {
+        fontSize: 13,
+    },
+    defaultTag: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+    },
+    defaultTagText: {
+        color: '#10B981',
+        fontSize: 11,
         fontWeight: '600',
     },
 });

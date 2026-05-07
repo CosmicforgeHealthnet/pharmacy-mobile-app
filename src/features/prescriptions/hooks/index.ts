@@ -10,6 +10,8 @@ export {
     useStartProcessing,
     useProvideCosts,
     useMarkReady,
+    useInitiateDispatch,
+    useMarkDelivered,
     useCompletePrescription,
     useCancelPrescription,
     useSendChatMessage,

@@ -30,6 +30,17 @@ export interface PatientWalletSummary {
     refundsReceived: number;
 }
 
+// ─── Pharmacy Wallet Summary (API Response) ──────────
+export interface PharmacyWalletSummary {
+    availableBalance: number;
+    pendingClearance: number;
+    totalEarnings: number;
+    currency: 'NGN';
+    thisMonthEarnings: number;
+    lastPayoutAmount: number | null;
+    lastPayoutDate: string | null;
+}
+
 // ─── Overview Types ───────────────────────────────────
 export interface OverviewStats {
     totalEarnings: number;
@@ -71,23 +82,27 @@ export interface EarningsSummary {
 
 // ─── Payout Types ─────────────────────────────────────
 export type PayoutStatus = 'completed' | 'pending' | 'processing' | 'failed' | 'cancelled';
-export type PayoutMethod = 'bank_transfer' | 'mobile_money' | 'wallet';
+
+export interface PayoutBankAccount {
+    id: string;
+    bankName: string;
+    accountNumber: string;
+    accountName: string;
+    bankCode: string;
+    isDefault: boolean;
+}
 
 export interface Payout {
     id: string;
     amount: number;
+    currency: string;
     status: PayoutStatus;
-    method: PayoutMethod;
-    bankName?: string;
-    accountNumber?: string;
-    accountName?: string;
+    bankAccount: PayoutBankAccount;
     reference: string;
-    fee: number;
-    netAmount: number;
+    note?: string;
+    failureReason?: string;
     requestedAt: string;
     processedAt?: string;
-    completedAt?: string;
-    failureReason?: string;
 }
 
 export interface PayoutSummary {
@@ -138,6 +153,7 @@ export type TransactionType = 'credit' | 'debit';
 export type TransactionStatus = 'completed' | 'pending' | 'failed' | 'reversed';
 export type TransactionCategory =
     | 'order_payment'
+    | 'invoice_payment'
     | 'payout'
     | 'refund'
     | 'fee'
@@ -152,15 +168,14 @@ export interface Transaction {
     status: TransactionStatus;
     category: TransactionCategory;
     amount: number;
-    fee?: number;
-    netAmount: number;
     balanceAfter: number;
     description: string;
     reference: string;
-    orderId?: string;
-    orderRef?: string;
-    payoutId?: string;
-    disputeId?: string;
+    invoiceId?: string;
+    invoiceRef?: string;
+    prescriptionRef?: string;
+    currency: string;
+    settledAt?: string | null;
     createdAt: string;
 }
 
@@ -170,4 +185,61 @@ export interface TransactionSummary {
     netBalance: number;
     transactionCount: number;
     currency: 'NGN';
+}
+
+// ─── API Response Types ──────────────────────────────
+export interface TransactionsResponse {
+    transactions: Transaction[];
+    total: number;
+    page: number;
+    limit: number;
+    currency: string;
+}
+
+export interface PayoutsResponse {
+    payouts: Payout[];
+    total: number;
+    page: number;
+    limit: number;
+}
+
+export interface BankAccountsResponse {
+    bankAccounts: BankAccount[];
+}
+
+export interface DisputesResponse {
+    disputes: Dispute[];
+    total: number;
+    page: number;
+    limit: number;
+}
+
+// ─── Bank Account Types ──────────────────────────────
+export interface BankAccount {
+    id: string;
+    bankName: string;
+    accountNumber: string;
+    accountName: string;
+    bankCode: string;
+    isDefault: boolean;
+}
+
+export interface AddBankAccountPayload {
+    bankName: string;
+    accountNumber: string;
+    accountName: string;
+    bankCode: string;
+}
+
+// ─── Payout Request Payload ──────────────────────────
+export interface RequestPayoutPayload {
+    amount: number;
+    bankAccountId: string;
+    note?: string;
+}
+
+// ─── Dispute Response Payload ────────────────────────
+export interface RespondToDisputePayload {
+    response: string;
+    attachments?: string[];
 }

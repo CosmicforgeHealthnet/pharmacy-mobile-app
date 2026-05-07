@@ -21,6 +21,7 @@ import {
 import { useHomeData } from '../hooks';
 import { storage } from '@/core/storage';
 import { useWalletSummary } from '@/features/wallet/hooks/useWallet';
+import { NotificationBell } from '@/features/notifications/components';
 import type { Prescription, ActiveOrder, DashboardActivityItem, PrescriptionStatus } from '../types';
 
 // ─── Types ───────────────────────────────────────────
@@ -129,13 +130,7 @@ function Header({
                         >
                             <Ionicons name="search-outline" size={22} color={colors.text} />
                         </TouchableOpacity>
-                        <TouchableOpacity style={[styles.iconButton, { backgroundColor: colors.inputBackground }]}>
-                            <Ionicons name="notifications-outline" size={22} color={colors.text} />
-                            {/* Notification badge */}
-                            <View style={[styles.notificationBadge, { backgroundColor: '#EF4444' }]}>
-                                <ThemedText style={styles.badgeText}>3</ThemedText>
-                            </View>
-                        </TouchableOpacity>
+                        <NotificationBell colors={colors} />
                         <TouchableOpacity style={[styles.iconButton, { backgroundColor: colors.inputBackground }]}>
                             <Ionicons name="headset-outline" size={22} color={colors.text} />
                         </TouchableOpacity>
@@ -362,11 +357,13 @@ function CreateOrderModal({
 }) {
     const [formData, setFormData] = React.useState<CreateOrderFormData>({
         patientName: '',
-        prescriptionReference: `RX-${Date.now().toString().slice(-6)}`,
+        prescriptionReference: '',
         numberOfMedications: '',
         priority: 'Routine',
         orderType: 'New',
     });
+    const [isSuccess, setIsSuccess] = React.useState(false);
+    const [errors, setErrors] = React.useState<Partial<Record<keyof CreateOrderFormData, string>>>({});
 
     const priorityOptions = ['Routine', 'Urgent', 'Emergency'];
     const orderTypeOptions = ['New', 'Refill', 'Transfer', 'Compound'];
@@ -374,40 +371,134 @@ function CreateOrderModal({
     const handleReset = () => {
         setFormData({
             patientName: '',
-            prescriptionReference: `RX-${Date.now().toString().slice(-6)}`,
+            prescriptionReference: '',
             numberOfMedications: '',
             priority: 'Routine',
             orderType: 'New',
         });
+        setErrors({});
+    };
+
+    const handleClose = () => {
+        setIsSuccess(false);
+        handleReset();
+        onClose();
     };
 
     const handleSubmit = () => {
         // Validate and submit
-        if (!formData.patientName.trim()) {
+        const trimmedPatientName = formData.patientName.trim();
+        const trimmedPrescriptionRef = formData.prescriptionReference.trim();
+        const trimmedMedications = formData.numberOfMedications.trim();
+
+        const newErrors: Partial<Record<keyof CreateOrderFormData, string>> = {};
+
+        if (!trimmedPatientName) {
+            newErrors.patientName = 'Patient name is required';
+        }
+        if (!trimmedPrescriptionRef) {
+            newErrors.prescriptionReference = 'Prescription reference is required';
+        }
+        if (!trimmedMedications) {
+            newErrors.numberOfMedications = 'Number of medications is required';
+        } else if (isNaN(parseInt(trimmedMedications, 10)) || parseInt(trimmedMedications, 10) <= 0) {
+            newErrors.numberOfMedications = 'Please enter a valid number';
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
             return;
         }
-        console.log('Order submitted:', formData);
-        handleReset();
-        onClose();
+
+        const submittedData = {
+            ...formData,
+            patientName: trimmedPatientName,
+            prescriptionReference: trimmedPrescriptionRef,
+            numberOfMedications: trimmedMedications,
+        };
+
+        console.log('Order submitted:', submittedData);
+        setIsSuccess(true);
     };
+
+    const handleCreateAnother = () => {
+        setIsSuccess(false);
+        handleReset();
+    };
+
+    const clearError = (field: keyof CreateOrderFormData) => {
+        if (errors[field]) {
+            setErrors(prev => ({ ...prev, [field]: undefined }));
+        }
+    };
+
+    // Success View
+    if (isSuccess) {
+        return (
+            <Modal
+                visible={visible}
+                animationType="fade"
+                transparent={true}
+                onRequestClose={() => {}} // Prevent back button from closing
+            >
+                <View style={styles.successOverlay}>
+                    <View style={[styles.successModal, { backgroundColor: colors.background }]}>
+                        <View style={styles.successContainer}>
+                            <View style={styles.successIconContainer}>
+                                <Ionicons name="checkmark-circle" size={80} color="#10B981" />
+                            </View>
+                            <ThemedText style={styles.successTitle}>Order Created!</ThemedText>
+                            <ThemedText style={[styles.successMessage, { color: colors.placeholder }]}>
+                                Your order has been created successfully.
+                            </ThemedText>
+                            <View style={styles.successButtons}>
+                                <TouchableOpacity
+                                    style={[styles.successButton, { backgroundColor: colors.primary }]}
+                                    onPress={handleCreateAnother}
+                                >
+                                    <ThemedText style={styles.successButtonText}>Create Another</ThemedText>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.successButtonOutline, { borderColor: colors.primary }]}
+                                    onPress={handleClose}
+                                >
+                                    <ThemedText style={[styles.successButtonOutlineText, { color: colors.primary }]}>
+                                        Done
+                                    </ThemedText>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+        );
+    }
 
     return (
         <Modal
             visible={visible}
             animationType="slide"
             transparent={true}
-            onRequestClose={onClose}
+            onRequestClose={handleClose}
         >
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            <TouchableOpacity
                 style={styles.modalOverlay}
+                activeOpacity={1}
+                onPress={handleClose}
             >
-                <View style={styles.modalOverlay}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={styles.modalKeyboardView}
+                >
+                    <TouchableOpacity
+                        activeOpacity={1}
+                        onPress={(e) => e.stopPropagation()}
+                        style={[styles.modalContent, { backgroundColor: colors.background }]}
+                    >
                         {/* Modal Header */}
                         <View style={styles.modalHeader}>
                             <ThemedText style={styles.modalTitle}>Create New Order</ThemedText>
-                            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
                                 <Ionicons name="close" size={24} color={colors.text} />
                             </TouchableOpacity>
                         </View>
@@ -416,45 +507,73 @@ function CreateOrderModal({
                             style={styles.modalBody}
                             showsVerticalScrollIndicator={false}
                             keyboardShouldPersistTaps="handled"
+                            bounces={false}
                         >
                             {/* Patient Name */}
                             <View style={styles.inputGroup}>
                                 <ThemedText style={styles.inputLabel}>Patient Name</ThemedText>
                                 <TextInput
-                                    style={[styles.modalInput, { backgroundColor: colors.inputBackground, color: colors.text }]}
+                                    style={[
+                                        styles.modalInput,
+                                        { backgroundColor: colors.inputBackground, color: colors.text },
+                                        errors.patientName && styles.inputError
+                                    ]}
                                     placeholder="Enter patient name"
                                     placeholderTextColor={colors.placeholder}
                                     value={formData.patientName}
-                                    onChangeText={(text) => setFormData({ ...formData, patientName: text })}
+                                    onChangeText={(text) => {
+                                        setFormData({ ...formData, patientName: text });
+                                        clearError('patientName');
+                                    }}
                                 />
+                                {errors.patientName && (
+                                    <ThemedText style={styles.errorText}>{errors.patientName}</ThemedText>
+                                )}
                             </View>
 
                             {/* Prescription Reference */}
                             <View style={styles.inputGroup}>
                                 <ThemedText style={styles.inputLabel}>Prescription Reference</ThemedText>
-                                <View style={[styles.referenceContainer, { backgroundColor: colors.inputBackground }]}>
-                                    <ThemedText style={[styles.referenceText, { color: colors.placeholder }]}>
-                                        {formData.prescriptionReference}
-                                    </ThemedText>
-                                    <View style={[styles.autoGeneratedBadge, { backgroundColor: `${colors.primary}15` }]}>
-                                        <ThemedText style={[styles.autoGeneratedText, { color: colors.primary }]}>
-                                            Auto-generated
-                                        </ThemedText>
-                                    </View>
-                                </View>
+                                <TextInput
+                                    style={[
+                                        styles.modalInput,
+                                        { backgroundColor: colors.inputBackground, color: colors.text },
+                                        errors.prescriptionReference && styles.inputError
+                                    ]}
+                                    placeholder="Enter prescription reference (e.g. RX-123456)"
+                                    placeholderTextColor={colors.placeholder}
+                                    value={formData.prescriptionReference}
+                                    onChangeText={(text) => {
+                                        setFormData({ ...formData, prescriptionReference: text });
+                                        clearError('prescriptionReference');
+                                    }}
+                                />
+                                {errors.prescriptionReference && (
+                                    <ThemedText style={styles.errorText}>{errors.prescriptionReference}</ThemedText>
+                                )}
                             </View>
 
                             {/* Number of Medications */}
                             <View style={styles.inputGroup}>
                                 <ThemedText style={styles.inputLabel}>Number of Medications</ThemedText>
                                 <TextInput
-                                    style={[styles.modalInput, { backgroundColor: colors.inputBackground, color: colors.text }]}
+                                    style={[
+                                        styles.modalInput,
+                                        { backgroundColor: colors.inputBackground, color: colors.text },
+                                        errors.numberOfMedications && styles.inputError
+                                    ]}
                                     placeholder="Enter number of medications"
                                     placeholderTextColor={colors.placeholder}
                                     keyboardType="numeric"
                                     value={formData.numberOfMedications}
-                                    onChangeText={(text) => setFormData({ ...formData, numberOfMedications: text })}
+                                    onChangeText={(text) => {
+                                        setFormData({ ...formData, numberOfMedications: text });
+                                        clearError('numberOfMedications');
+                                    }}
                                 />
+                                {errors.numberOfMedications && (
+                                    <ThemedText style={styles.errorText}>{errors.numberOfMedications}</ThemedText>
+                                )}
                             </View>
 
                             {/* Priority */}
@@ -493,9 +612,9 @@ function CreateOrderModal({
                                 <ThemedText style={styles.submitButtonText}>Create Order</ThemedText>
                             </TouchableOpacity>
                         </View>
-                    </View>
-                </View>
-            </KeyboardAvoidingView>
+                    </TouchableOpacity>
+                </KeyboardAvoidingView>
+            </TouchableOpacity>
         </Modal>
     );
 }
@@ -709,7 +828,6 @@ export function HomeScreen() {
                 <View style={styles.section}>
                     <SectionHeader
                         title="New Prescription Requests"
-                        onSeeAll={() => router.push('/prescription-requests')}
                         colors={colors}
                     />
                     <View style={[styles.sectionCard, { backgroundColor: colors.background }]}>
@@ -741,7 +859,6 @@ export function HomeScreen() {
                 <View style={styles.section}>
                     <SectionHeader
                         title="Active Orders"
-                        onSeeAll={() => router.push('/active-orders')}
                         colors={colors}
                     />
                     <View style={[styles.sectionCard, { backgroundColor: colors.background }]}>
@@ -775,8 +892,8 @@ export function HomeScreen() {
                     <CreateOrderCard colors={colors} onPress={handleCreateOrder} />
                 </View>
 
-                {/* Recent Activity */}
-                <View style={styles.section}>
+                {/* Recent Activity - Commented out for now */}
+                {/* <View style={styles.section}>
                     <SectionHeader
                         title="Recent Activity"
                         onSeeAll={() => router.push('/recent-activity')}
@@ -811,7 +928,7 @@ export function HomeScreen() {
                             </View>
                         )}
                     </View>
-                </View>
+                </View> */}
             </ScrollView>
 
             {/* Create Order Modal */}
@@ -1174,6 +1291,10 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'flex-end',
     },
+    modalKeyboardView: {
+        width: '100%',
+        justifyContent: 'flex-end',
+    },
     modalContent: {
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
@@ -1281,5 +1402,69 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 16,
         fontWeight: '600',
+    },
+    // Success modal styles
+    successOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    successModal: {
+        width: '100%',
+        borderRadius: 24,
+        padding: 8,
+    },
+    successContainer: {
+        alignItems: 'center',
+        padding: 24,
+    },
+    successIconContainer: {
+        marginBottom: 20,
+    },
+    successTitle: {
+        fontSize: 24,
+        fontWeight: '700',
+        marginBottom: 8,
+    },
+    successMessage: {
+        fontSize: 16,
+        textAlign: 'center',
+        marginBottom: 32,
+    },
+    successButtons: {
+        width: '100%',
+        gap: 12,
+    },
+    successButton: {
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    successButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    successButtonOutline: {
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+        borderWidth: 1.5,
+    },
+    successButtonOutlineText: {
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    // Error styles
+    inputError: {
+        borderWidth: 1,
+        borderColor: '#EF4444',
+    },
+    errorText: {
+        color: '#EF4444',
+        fontSize: 12,
+        marginTop: 4,
     },
 });

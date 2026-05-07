@@ -20,6 +20,8 @@ import {
     useStartProcessing,
     useProvideCosts,
     useMarkReady,
+    useInitiateDispatch,
+    useMarkDelivered,
     useCompletePrescription,
     useCancelPrescription,
     useConfirmAvailability,
@@ -233,6 +235,10 @@ export function PrescriptionDetailScreen() {
     const colors = Colors[colorScheme];
 
     const [showCostModal, setShowCostModal] = useState(false);
+    const [showDispatchModal, setShowDispatchModal] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [dispatchNote, setDispatchNote] = useState('');
+    const [cancelReason, setCancelReason] = useState('');
 
     // Fetch prescription details
     const { data: prescription, isLoading, refetch } = usePrescriptionById(id);
@@ -241,11 +247,14 @@ export function PrescriptionDetailScreen() {
     const { mutate: startProcessing, isPending: isStarting } = useStartProcessing(id);
     const { mutate: provideCosts, isPending: isProvidingCosts } = useProvideCosts(id);
     const { mutate: markReady, isPending: isMarkingReady } = useMarkReady(id);
+    const { mutate: dispatch, isPending: isDispatching } = useInitiateDispatch(id);
+    const { mutate: markDelivered, isPending: isMarkingDelivered } = useMarkDelivered(id);
     const { mutate: complete, isPending: isCompleting } = useCompletePrescription(id);
     const { mutate: cancel, isPending: isCancelling } = useCancelPrescription(id);
     const { mutate: confirmAvailability, isPending: isConfirming } = useConfirmAvailability(id);
 
-    const isAnyLoading = isStarting || isProvidingCosts || isMarkingReady || isCompleting || isCancelling || isConfirming;
+    const isAnyLoading = isStarting || isProvidingCosts || isMarkingReady || isDispatching || isMarkingDelivered || isCompleting || isCancelling || isConfirming;
+    const hasDeliveryAddress = !!prescription?.deliveryAddress;
 
     const handleStartProcessing = () => {
         Alert.alert(
@@ -270,7 +279,7 @@ export function PrescriptionDetailScreen() {
     const handleMarkReady = () => {
         Alert.alert(
             'Mark as Ready',
-            'Confirm that this prescription is ready for pickup or delivery.',
+            'Confirm that this prescription is packed and ready for pickup or delivery.',
             [
                 { text: 'Cancel', style: 'cancel' },
                 { text: 'Confirm', onPress: () => markReady() },
@@ -278,26 +287,45 @@ export function PrescriptionDetailScreen() {
         );
     };
 
-    const handleComplete = () => {
+    const handleDispatch = () => {
+        dispatch(dispatchNote || undefined, {
+            onSuccess: () => {
+                setShowDispatchModal(false);
+                setDispatchNote('');
+            },
+        });
+    };
+
+    const handleMarkDelivered = () => {
         Alert.alert(
-            'Mark as Completed',
-            'Confirm that this prescription has been successfully fulfilled.',
+            'Mark as Delivered',
+            'Confirm that the order has been successfully delivered to the patient.',
             [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Complete', onPress: () => complete() },
+                { text: 'Confirm', onPress: () => markDelivered() },
             ]
         );
     };
 
-    const handleCancel = () => {
+    const handleComplete = () => {
         Alert.alert(
-            'Cancel Prescription',
-            'Are you sure you want to cancel this prescription? This action cannot be undone.',
+            'Mark as Collected',
+            'Confirm that the patient has collected their prescription in person.',
             [
-                { text: 'No', style: 'cancel' },
-                { text: 'Yes, Cancel', style: 'destructive', onPress: () => cancel() },
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Confirm', onPress: () => complete() },
             ]
         );
+    };
+
+    const handleCancelWithReason = () => {
+        if (!cancelReason.trim()) return;
+        cancel(cancelReason.trim(), {
+            onSuccess: () => {
+                setShowCancelModal(false);
+                setCancelReason('');
+            },
+        });
     };
 
     const handleConfirmAvailability = () => {
@@ -396,7 +424,18 @@ export function PrescriptionDetailScreen() {
                 );
 
             case 'ready_for_pickup':
-            case 'out_for_delivery':
+                if (hasDeliveryAddress) {
+                    return (
+                        <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: colors.primary }]}
+                            onPress={() => setShowDispatchModal(true)}
+                            disabled={isAnyLoading}
+                        >
+                            <Ionicons name="car-outline" size={20} color="#FFFFFF" />
+                            <ThemedText style={styles.actionButtonText}>Dispatch Order</ThemedText>
+                        </TouchableOpacity>
+                    );
+                }
                 return (
                     <TouchableOpacity
                         style={[styles.actionButton, { backgroundColor: '#16A34A' }]}
@@ -407,8 +446,26 @@ export function PrescriptionDetailScreen() {
                             <ActivityIndicator size="small" color="#FFFFFF" />
                         ) : (
                             <>
+                                <Ionicons name="bag-check-outline" size={20} color="#FFFFFF" />
+                                <ThemedText style={styles.actionButtonText}>Mark as Collected</ThemedText>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                );
+
+            case 'out_for_delivery':
+                return (
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#16A34A' }]}
+                        onPress={handleMarkDelivered}
+                        disabled={isAnyLoading}
+                    >
+                        {isMarkingDelivered ? (
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                            <>
                                 <Ionicons name="checkmark-done-circle-outline" size={20} color="#FFFFFF" />
-                                <ThemedText style={styles.actionButtonText}>Mark as Completed</ThemedText>
+                                <ThemedText style={styles.actionButtonText}>Mark as Delivered</ThemedText>
                             </>
                         )}
                     </TouchableOpacity>
@@ -638,14 +695,10 @@ export function PrescriptionDetailScreen() {
                     {prescription.status !== 'completed' && prescription.status !== 'cancelled' && (
                         <TouchableOpacity
                             style={styles.cancelLink}
-                            onPress={handleCancel}
+                            onPress={() => setShowCancelModal(true)}
                             disabled={isCancelling}
                         >
-                            {isCancelling ? (
-                                <ActivityIndicator size="small" color="#DC2626" />
-                            ) : (
-                                <ThemedText style={styles.cancelLinkText}>Cancel Prescription</ThemedText>
-                            )}
+                            <ThemedText style={styles.cancelLinkText}>Cancel Prescription</ThemedText>
                         </TouchableOpacity>
                     )}
                 </View>
@@ -661,6 +714,107 @@ export function PrescriptionDetailScreen() {
                 isLoading={isProvidingCosts}
                 colors={colors}
             />
+
+            {/* Dispatch Modal */}
+            <Modal visible={showDispatchModal} transparent animationType="slide">
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+                        <View style={styles.modalHeader}>
+                            <ThemedText style={styles.modalTitle}>Dispatch Order</ThemedText>
+                            <TouchableOpacity onPress={() => setShowDispatchModal(false)}>
+                                <Ionicons name="close" size={24} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.modalBody}>
+                            <View style={styles.inputGroup}>
+                                <ThemedText style={styles.inputLabel}>Note for driver (optional)</ThemedText>
+                                <TextInput
+                                    style={[styles.textInput, styles.textArea, { backgroundColor: colors.inputBackground, color: colors.text }]}
+                                    placeholder="e.g. Handle with care, call patient before arriving"
+                                    placeholderTextColor={colors.placeholder}
+                                    value={dispatchNote}
+                                    onChangeText={setDispatchNote}
+                                    multiline
+                                    numberOfLines={3}
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.modalFooter}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.cancelButton, { borderColor: colors.inputBackground }]}
+                                onPress={() => setShowDispatchModal(false)}
+                            >
+                                <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.submitButton, { backgroundColor: colors.primary }]}
+                                onPress={handleDispatch}
+                                disabled={isDispatching}
+                            >
+                                {isDispatching ? (
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                ) : (
+                                    <ThemedText style={styles.submitButtonText}>Confirm Dispatch</ThemedText>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Cancel Modal */}
+            <Modal visible={showCancelModal} transparent animationType="slide">
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+                        <View style={styles.modalHeader}>
+                            <ThemedText style={styles.modalTitle}>Cancel Prescription</ThemedText>
+                            <TouchableOpacity onPress={() => setShowCancelModal(false)}>
+                                <Ionicons name="close" size={24} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.modalBody}>
+                            <ThemedText style={[styles.cancelWarning, { color: colors.placeholder }]}>
+                                Please provide a reason for cancellation. This action cannot be undone.
+                            </ThemedText>
+                            <View style={styles.inputGroup}>
+                                <ThemedText style={styles.inputLabel}>Reason</ThemedText>
+                                <TextInput
+                                    style={[styles.textInput, styles.textArea, { backgroundColor: colors.inputBackground, color: colors.text }]}
+                                    placeholder="e.g. Medication permanently out of stock"
+                                    placeholderTextColor={colors.placeholder}
+                                    value={cancelReason}
+                                    onChangeText={setCancelReason}
+                                    multiline
+                                    numberOfLines={3}
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.modalFooter}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.cancelButton, { borderColor: colors.inputBackground }]}
+                                onPress={() => setShowCancelModal(false)}
+                            >
+                                <ThemedText style={styles.cancelButtonText}>Back</ThemedText>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalButton, { backgroundColor: '#DC2626' }]}
+                                onPress={handleCancelWithReason}
+                                disabled={!cancelReason.trim() || isCancelling}
+                            >
+                                {isCancelling ? (
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                ) : (
+                                    <ThemedText style={styles.submitButtonText}>Cancel Prescription</ThemedText>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </ThemedView>
     );
 }
@@ -961,6 +1115,16 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         paddingHorizontal: 14,
         fontSize: 16,
+    },
+    textArea: {
+        height: 80,
+        paddingTop: 12,
+        textAlignVertical: 'top',
+    },
+    cancelWarning: {
+        fontSize: 14,
+        marginBottom: 16,
+        lineHeight: 20,
     },
     modalFooter: {
         flexDirection: 'row',

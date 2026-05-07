@@ -22,6 +22,8 @@ const PRESCRIPTION_URLS = {
     START_PROCESSING: (id: string) => `/pharmacy/prescriptions/${id}/start-processing`,
     PROVIDE_COSTS: (id: string) => `/pharmacy/prescriptions/${id}/provide-costs`,
     MARK_READY: (id: string) => `/pharmacy/prescriptions/${id}/mark-ready`,
+    DISPATCH: (id: string) => `/pharmacy/prescriptions/${id}/dispatch`,
+    MARK_DELIVERED: (id: string) => `/pharmacy/prescriptions/${id}/mark-delivered`,
     COMPLETE: (id: string) => `/pharmacy/prescriptions/${id}/complete`,
     CANCEL: (id: string) => `/pharmacy/prescriptions/${id}/cancel`,
     SEARCH: '/pharmacy/prescriptions/search',
@@ -88,14 +90,24 @@ export const prescriptionService = {
         return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.MARK_READY(id));
     },
 
-    // Complete prescription
+    // Initiate dispatch for delivery
+    async initiateDispatch(id: string, note?: string): Promise<PrescriptionDetail> {
+        return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.DISPATCH(id), { note });
+    },
+
+    // Mark prescription as delivered
+    async markDelivered(id: string): Promise<PrescriptionDetail> {
+        return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.MARK_DELIVERED(id));
+    },
+
+    // Complete prescription (for pickup)
     async complete(id: string): Promise<PrescriptionDetail> {
         return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.COMPLETE(id));
     },
 
-    // Cancel prescription
-    async cancelPrescription(id: string): Promise<PrescriptionDetail> {
-        return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.CANCEL(id));
+    // Cancel prescription with reason
+    async cancelPrescription(id: string, reason?: string): Promise<PrescriptionDetail> {
+        return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.CANCEL(id), { reason });
     },
 
     // Search prescriptions

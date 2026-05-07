@@ -1,4 +1,10 @@
 import { apiClient } from '@/core/api/client';
+import type {
+    BankAccount,
+    AddBankAccountPayload,
+    RequestPayoutPayload,
+    RespondToDisputePayload,
+} from '../types';
 
 export const WALLET_URLS = {
    SUMMARY: "/pharmacy/wallet/summary",
@@ -30,7 +36,8 @@ export class WalletService {
        dateTo?: string;
     }) {
        const response = await apiClient.get<any>(WALLET_URLS.TRANSACTIONS, { params });
-       return response?.data ?? { transactions: [], total: 0 };
+       console.log("Transactions response:", response);
+       return response?.transactions ?? { transactions: [], total: 0 };
     }
  
     static async getEarnings(params?: {
@@ -51,7 +58,7 @@ export class WalletService {
        return response?.data ?? { payouts: [], total: 0 };
     }
  
-    static async requestPayout(data: any) {
+    static async requestPayout(data: RequestPayoutPayload) {
        const response = await apiClient.post<any>(WALLET_URLS.PAYOUTS, data);
        return response?.data ?? {};
     }
@@ -63,5 +70,41 @@ export class WalletService {
     }) {
        const response = await apiClient.get<any>(WALLET_URLS.DISPUTES, { params });
        return response?.data ?? { disputes: [], total: 0 };
+    }
+
+    // Cancel payout request (only works when status is 'pending')
+    static async cancelPayout(payoutId: string) {
+       const response = await apiClient.patch<any>(WALLET_URLS.PAYOUT_CANCEL(payoutId));
+       return response?.data ?? {};
+    }
+
+    // Get all bank accounts
+    static async getBankAccounts() {
+       const response = await apiClient.get<any>(WALLET_URLS.BANK_ACCOUNTS);
+       return response?.data ?? { bankAccounts: [] };
+    }
+
+    // Add new bank account
+    static async addBankAccount(data: AddBankAccountPayload) {
+       const response = await apiClient.post<any>(WALLET_URLS.BANK_ACCOUNTS, data);
+       return response?.data ?? {};
+    }
+
+    // Set bank account as default
+    static async setDefaultBankAccount(bankAccountId: string) {
+       const response = await apiClient.patch<any>(WALLET_URLS.BANK_ACCOUNT_SET_DEFAULT(bankAccountId));
+       return response?.data ?? {};
+    }
+
+    // Delete bank account
+    static async deleteBankAccount(bankAccountId: string) {
+       const response = await apiClient.delete<any>(WALLET_URLS.BANK_ACCOUNT_DETAIL(bankAccountId));
+       return response?.data ?? {};
+    }
+
+    // Respond to dispute
+    static async respondToDispute(disputeId: string, data: RespondToDisputePayload) {
+       const response = await apiClient.post<any>(WALLET_URLS.DISPUTE_RESPOND(disputeId), data);
+       return response?.data ?? {};
     }
  }
