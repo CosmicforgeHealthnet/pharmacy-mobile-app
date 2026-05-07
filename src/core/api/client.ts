@@ -7,7 +7,7 @@ import { sessionEvents } from "@/core/auth/sessionEvents";
 
 // API Configuration
 const API_BASE_URL =
-   Constants.expoConfig?.extra?.apiUrl || "https://backend.cosmicforge-healthnet.com";
+   Constants.expoConfig?.extra?.apiUrl || "https://api.cosmicforge-healthnet.com/api";
 const API_TIMEOUT = 30000; // 30 seconds
 
 // Response wrapper type

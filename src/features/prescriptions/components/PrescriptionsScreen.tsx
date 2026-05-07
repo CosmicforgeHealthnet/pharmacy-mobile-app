@@ -3,7 +3,8 @@ import { ThemedView } from '@/shared/components/themed-view';
 import { Colors } from '@/shared/constants/theme';
 import { useColorScheme } from '@/shared/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState, useMemo } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
     FlatList,
     RefreshControl,
@@ -11,35 +12,11 @@ import {
     TextInput,
     TouchableOpacity,
     View,
+    ActivityIndicator,
 } from 'react-native';
-
-// ─── Types ───────────────────────────────────────────
-interface Prescription {
-    id: string;
-    reference: string;
-    patientName: string;
-    doctorName: string;
-    status: string;
-    createdAt: string;
-}
-
-// ─── Status Colors ───────────────────────────────────
-const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-    new: { bg: '#EFF6FF', text: '#2563EB', border: '#BFDBFE' },
-    pending: { bg: '#FFFBEB', text: '#D97706', border: '#FDE68A' },
-    in_progress: { bg: '#ECFEFF', text: '#0891B2', border: '#A5F3FC' },
-    ready_for_pickup: { bg: '#F0FDFA', text: '#0D9488', border: '#99F6E4' },
-    completed: { bg: '#F0FDF4', text: '#16A34A', border: '#BBF7D0' },
-    cancelled: { bg: '#FEF2F2', text: '#DC2626', border: '#FECACA' },
-};
-
-function getStatusColor(status: string) {
-    return STATUS_COLORS[status?.toLowerCase()] ?? { bg: '#F3F4F6', text: '#6B7280', border: '#E5E7EB' };
-}
-
-function formatStatus(status: string): string {
-    return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
+import { usePrescriptions } from '../hooks';
+import type { Prescription, PrescriptionStatus } from '../types';
+import { getStatusColor, formatStatus, formatRelativeTime } from '../types';
 
 // ─── Filter Chip ─────────────────────────────────────
 function FilterChip({
@@ -97,9 +74,11 @@ function PrescriptionCard({
         >
             <View style={styles.cardHeader}>
                 <View style={styles.cardHeaderLeft}>
-                    <ThemedText style={styles.patientName}>{prescription.patientName}</ThemedText>
+                    <ThemedText style={styles.patientName}>
+                        {prescription.patient?.fullName ?? 'Unknown Patient'}
+                    </ThemedText>
                     <ThemedText style={[styles.reference, { color: colors.placeholder }]}>
-                        {prescription.reference}
+                        {prescription.reference || `RX-${prescription.id?.slice(-6) || '000000'}`}
                     </ThemedText>
                 </View>
                 <View
@@ -121,19 +100,29 @@ function PrescriptionCard({
                 <View style={styles.detailRow}>
                     <Ionicons name="person-outline" size={16} color={colors.placeholder} />
                     <ThemedText style={[styles.detailText, { color: colors.placeholder }]}>
-                        Dr. {prescription.doctorName}
+                        {prescription.doctor?.fullName
+                            ? `Dr. ${prescription.doctor.fullName}`
+                            : 'Doctor not assigned'}
                     </ThemedText>
                 </View>
                 <View style={styles.detailRow}>
                     <Ionicons name="calendar-outline" size={16} color={colors.placeholder} />
                     <ThemedText style={[styles.detailText, { color: colors.placeholder }]}>
-                        {prescription.createdAt}
+                        {formatRelativeTime(prescription.createdAt)}
                     </ThemedText>
                 </View>
+                {prescription.medications?.length > 0 && (
+                    <View style={styles.detailRow}>
+                        <Ionicons name="medical-outline" size={16} color={colors.placeholder} />
+                        <ThemedText style={[styles.detailText, { color: colors.placeholder }]}>
+                            {prescription.medications.length} medication{prescription.medications.length > 1 ? 's' : ''}
+                        </ThemedText>
+                    </View>
+                )}
             </View>
 
-            <View style={styles.cardFooter}>
-                <TouchableOpacity style={styles.actionButton}>
+            <View style={[styles.cardFooter, { borderTopColor: colors.inputBackground }]}>
+                <TouchableOpacity style={styles.actionButton} onPress={onPress}>
                     <Ionicons name="eye-outline" size={18} color={colors.primary} />
                     <ThemedText style={[styles.actionText, { color: colors.primary }]}>
                         View Details
@@ -141,6 +130,27 @@ function PrescriptionCard({
                 </TouchableOpacity>
             </View>
         </TouchableOpacity>
+    );
+}
+
+// ─── Loading Skeleton ─────────────────────────────────
+function LoadingSkeleton({ colors }: { colors: typeof Colors.light }) {
+    return (
+        <View style={styles.skeletonContainer}>
+            {[1, 2, 3, 4, 5].map((i) => (
+                <View
+                    key={i}
+                    style={[styles.skeletonCard, { backgroundColor: colors.background }]}
+                >
+                    <View style={styles.skeletonHeader}>
+                        <View style={[styles.skeletonLine, { width: '60%', backgroundColor: colors.inputBackground }]} />
+                        <View style={[styles.skeletonBadge, { backgroundColor: colors.inputBackground }]} />
+                    </View>
+                    <View style={[styles.skeletonLine, { width: '40%', backgroundColor: colors.inputBackground }]} />
+                    <View style={[styles.skeletonLine, { width: '50%', backgroundColor: colors.inputBackground }]} />
+                </View>
+            ))}
+        </View>
     );
 }
 
@@ -163,29 +173,29 @@ function EmptyState({ colors, hasFilters }: { colors: typeof Colors.light; hasFi
 
 // ─── Prescriptions Screen ────────────────────────────
 export function PrescriptionsScreen() {
+    const router = useRouter();
     const colorScheme = useColorScheme() ?? 'light';
     const colors = Colors[colorScheme];
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
-    const [refreshing, setRefreshing] = useState(false);
 
-    // Mock data - replace with actual API data
-    const prescriptions: Prescription[] = [
-        { id: '1', reference: 'RX-2024-001', patientName: 'John Doe', doctorName: 'Sarah Smith', status: 'new', createdAt: 'Today, 10:30 AM' },
-        { id: '2', reference: 'RX-2024-002', patientName: 'Jane Smith', doctorName: 'Michael Brown', status: 'pending', createdAt: 'Today, 9:15 AM' },
-        { id: '3', reference: 'RX-2024-003', patientName: 'Michael Brown', doctorName: 'Emily Chen', status: 'in_progress', createdAt: 'Yesterday' },
-        { id: '4', reference: 'RX-2024-004', patientName: 'Sarah Wilson', doctorName: 'David Lee', status: 'ready_for_pickup', createdAt: 'Yesterday' },
-        { id: '5', reference: 'RX-2024-005', patientName: 'David Lee', doctorName: 'Sarah Smith', status: 'completed', createdAt: '2 days ago' },
-        { id: '6', reference: 'RX-2024-006', patientName: 'Emily Chen', doctorName: 'Michael Brown', status: 'cancelled', createdAt: '3 days ago' },
-    ];
+    // Fetch prescriptions from API
+    const { data: prescriptions = [], isLoading, refetch, isRefetching } = usePrescriptions();
 
-    const availableStatuses = ['all', ...new Set(prescriptions.map((p) => p.status))];
+    // Get unique statuses from prescriptions
+    const availableStatuses = useMemo(() => {
+        const statuses = new Set(prescriptions.map((p) => p.status));
+        return ['all', ...Array.from(statuses)];
+    }, [prescriptions]);
 
+    // Filter prescriptions based on search and status
     const filteredPrescriptions = useMemo(() => {
         return prescriptions.filter((p) => {
+            const patientName = p.patient?.fullName?.toLowerCase() ?? '';
+            const ref = (p.reference ?? p.id).toLowerCase();
             const matchesSearch =
-                p.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                p.reference.toLowerCase().includes(searchTerm.toLowerCase());
+                patientName.includes(searchTerm.toLowerCase()) ||
+                ref.includes(searchTerm.toLowerCase());
             const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
             return matchesSearch && matchesStatus;
         });
@@ -193,24 +203,35 @@ export function PrescriptionsScreen() {
 
     const hasFilters = searchTerm.length > 0 || statusFilter !== 'all';
 
-    const onRefresh = React.useCallback(() => {
-        setRefreshing(true);
-        setTimeout(() => setRefreshing(false), 1500);
-    }, []);
+    const onRefresh = useCallback(async () => {
+        await refetch();
+    }, [refetch]);
 
-    const renderPrescription = ({ item }: { item: Prescription }) => (
+    const handlePrescriptionPress = useCallback((prescription: Prescription) => {
+        router.push({
+            pathname: '/prescription/[id]' as any,
+            params: { id: prescription.id }
+        });
+    }, [router]);
+
+    const renderPrescription = useCallback(({ item }: { item: Prescription }) => (
         <PrescriptionCard
             prescription={item}
             colors={colors}
-            onPress={() => {}}
+            onPress={() => handlePrescriptionPress(item)}
         />
-    );
+    ), [colors, handlePrescriptionPress]);
+
+    const keyExtractor = useCallback((item: Prescription) => item.id, []);
 
     return (
         <ThemedView style={styles.container}>
             {/* Header */}
             <View style={[styles.header, { backgroundColor: colors.background }]}>
                 <ThemedText style={styles.headerTitle}>Prescriptions</ThemedText>
+                <View style={styles.headerRight}>
+                    {isLoading && <ActivityIndicator size="small" color={colors.primary} />}
+                </View>
             </View>
 
             {/* Search Bar */}
@@ -252,29 +273,47 @@ export function PrescriptionsScreen() {
             </View>
 
             {/* Results Count */}
-            <View style={styles.resultsContainer}>
-                <ThemedText style={[styles.resultsText, { color: colors.placeholder }]}>
-                    Showing {filteredPrescriptions.length} of {prescriptions.length} prescriptions
-                </ThemedText>
-            </View>
+            {!isLoading && (
+                <View style={styles.resultsContainer}>
+                    <ThemedText style={[styles.resultsText, { color: colors.placeholder }]}>
+                        Showing {filteredPrescriptions.length} of {prescriptions.length} prescriptions
+                    </ThemedText>
+                    {hasFilters && (
+                        <TouchableOpacity
+                            onPress={() => {
+                                setSearchTerm('');
+                                setStatusFilter('all');
+                            }}
+                        >
+                            <ThemedText style={[styles.clearFilters, { color: colors.primary }]}>
+                                Clear filters
+                            </ThemedText>
+                        </TouchableOpacity>
+                    )}
+                </View>
+            )}
 
             {/* Prescription List */}
-            <FlatList
-                data={filteredPrescriptions}
-                renderItem={renderPrescription}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        tintColor={colors.primary}
-                    />
-                }
-                ListEmptyComponent={<EmptyState colors={colors} hasFilters={hasFilters} />}
-                ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
-            />
+            {isLoading && !prescriptions.length ? (
+                <LoadingSkeleton colors={colors} />
+            ) : (
+                <FlatList
+                    data={filteredPrescriptions}
+                    renderItem={renderPrescription}
+                    keyExtractor={keyExtractor}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefetching}
+                            onRefresh={onRefresh}
+                            tintColor={colors.primary}
+                        />
+                    }
+                    ListEmptyComponent={<EmptyState colors={colors} hasFilters={hasFilters} />}
+                    ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+                />
+            )}
         </ThemedView>
     );
 }
@@ -285,6 +324,9 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         paddingHorizontal: 16,
         paddingTop: 60,
         paddingBottom: 12,
@@ -292,6 +334,10 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 28,
         fontWeight: '700',
+    },
+    headerRight: {
+        width: 24,
+        alignItems: 'center',
     },
     searchContainer: {
         paddingHorizontal: 16,
@@ -321,21 +367,30 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         borderRadius: 20,
         borderWidth: 1,
+        marginRight: 8,
     },
     filterChipText: {
         fontSize: 13,
         fontWeight: '500',
     },
     resultsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         paddingHorizontal: 16,
         paddingBottom: 8,
     },
     resultsText: {
         fontSize: 13,
     },
+    clearFilters: {
+        fontSize: 13,
+        fontWeight: '500',
+    },
     listContent: {
         paddingHorizontal: 16,
         paddingBottom: 24,
+        flexGrow: 1,
     },
     prescriptionCard: {
         borderRadius: 12,
@@ -383,7 +438,6 @@ const styles = StyleSheet.create({
     },
     cardFooter: {
         borderTopWidth: 1,
-        borderTopColor: '#F3F4F6',
         paddingTop: 12,
         flexDirection: 'row',
         justifyContent: 'flex-end',
@@ -415,5 +469,28 @@ const styles = StyleSheet.create({
         fontSize: 14,
         marginTop: 4,
         textAlign: 'center',
+    },
+    skeletonContainer: {
+        paddingHorizontal: 16,
+        gap: 12,
+    },
+    skeletonCard: {
+        borderRadius: 12,
+        padding: 16,
+        gap: 10,
+    },
+    skeletonHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    skeletonLine: {
+        height: 14,
+        borderRadius: 4,
+    },
+    skeletonBadge: {
+        width: 80,
+        height: 24,
+        borderRadius: 12,
     },
 });

@@ -22,7 +22,7 @@
  */
 import { Socket } from "socket.io-client";
 import { socketCore } from "./socketClient";
-import { ChatMessage, AppointmentChat } from "@/features/chat/types";
+import { ChatMessage, AppointmentChat } from "@/features/messages/types";
 
 // ─── Callback Manager (shared pattern with notificationSocket) ─────────────────
 

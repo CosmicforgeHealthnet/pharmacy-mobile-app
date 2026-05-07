@@ -5,7 +5,7 @@ import { storage } from "@/core/storage";
 export function useOnboarding() {
   const markAsSeen = useCallback(async () => {
     try {
-      // await storage.setOnboardingCompleted(true);
+      await storage.setOnboardingCompleted(true);
       router.replace("/(auth)/login");
     } catch (error) {
       console.error("Failed to save onboarding state:", error);

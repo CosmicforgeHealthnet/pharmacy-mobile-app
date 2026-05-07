@@ -48,11 +48,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="dispute"
+        name="invoice"
         options={{
-          title: 'Dispute',
+          title: 'Invoices',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'alert-circle' : 'alert-circle-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'receipt' : 'receipt-outline'} size={24} color={color} />
           ),
         }}
       />

@@ -2,14 +2,13 @@ import { ThemedText } from '@/shared/components/themed-text';
 import { ThemedView } from '@/shared/components/themed-view';
 import { Button } from '@/shared/components/ui/Button';
 import { Checkbox } from '@/shared/components/ui/Checkbox';
-import { AppAlert } from '@/shared/components/ui/Dialog';
 import { Input } from '@/shared/components/ui/Input';
 import { AppSnackbar } from '@/shared/components/ui/Snackbar';
 import { Colors } from '@/shared/constants/theme';
 import { useColorScheme } from '@/shared/hooks/use-color-scheme';
-import { Image as ExpoImage } from 'expo-image';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
+import { storage } from '@/core/storage';
 import {
     Image,
     KeyboardAvoidingView,
@@ -20,28 +19,9 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-
-// ─── Google Icon ──────────────────────────────────────
-function GoogleIcon() {
-    return (
-        <ExpoImage
-            source={require('@/assets/icons/google-icon.svg')}
-            style={{ width: 20, height: 20 }}
-            contentFit="contain"
-        />
-    );
-}
-
-// ─── Or Divider ───────────────────────────────────────
-function OrDivider() {
-    return (
-        <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <ThemedText style={styles.dividerText}>Or</ThemedText>
-            <View style={styles.dividerLine} />
-        </View>
-    );
-}
+import { useLogin } from '../hooks';
+import { handlePostLoginFlow } from '../utils/postLoginFlow';
+import { validateLoginForm, hasErrors, LoginFormErrors } from '../utils/validation';
 
 // ─── LOGIN SCREEN ─────────────────────────────────────
 export function LoginScreen() {
@@ -51,49 +31,70 @@ export function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [keepLoggedIn, setKeepLoggedIn] = useState(false);
-    const [loading, setLoading] = useState(false);
+    const { mutateAsync: loginMutation, isPending: loading } = useLogin();
     const [showPassword, setShowPassword] = useState(false);
 
-    // ── Alert state ───────────────────────────────────
-    const [alertVisible, setAlertVisible] = useState(false);
-    const [alertTitle, setAlertTitle] = useState('');
-    const [alertMessage, setAlertMessage] = useState('');
+    // ── Form errors ───────────────────────────────────
+    const [errors, setErrors] = useState<LoginFormErrors>({});
+    const [apiError, setApiError] = useState('');
 
     // ── Snackbar state ────────────────────────────────
     const [snackVisible, setSnackVisible] = useState(false);
     const [snackMessage, setSnackMessage] = useState('');
-
-    const showAlert = (title: string, message: string) => {
-        setAlertTitle(title);
-        setAlertMessage(message);
-        setAlertVisible(true);
-    };
 
     const showSnack = (message: string) => {
         setSnackMessage(message);
         setSnackVisible(true);
     };
 
+    // Clear field error when user types
+    const handleEmailChange = (text: string) => {
+        setEmail(text);
+        if (errors.email) setErrors(prev => ({ ...prev, email: undefined }));
+        if (apiError) setApiError('');
+    };
+
+    const handlePasswordChange = (text: string) => {
+        setPassword(text);
+        if (errors.password) setErrors(prev => ({ ...prev, password: undefined }));
+        if (apiError) setApiError('');
+    };
+
     // ── Handlers ─────────────────────────────────────
     const handleLogin = async () => {
-        if (!email || !password) {
-            showAlert('Error', 'Please enter your email and password.');
+        // Validate form
+        const validationErrors = validateLoginForm({ email, password });
+        setErrors(validationErrors);
+
+        if (hasErrors(validationErrors)) {
             return;
         }
 
-        setLoading(true);
+        setApiError('');
+
         try {
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-            router.replace('/(tabs)');
-        } catch {
-            showSnack('Invalid credentials. Please try again.');
-        } finally {
-            setLoading(false);
+            const deviceFingerprint = await storage.getDeviceFingerprint();
+
+            const response = await loginMutation({
+                email: email.trim().toLowerCase(),
+                password,
+                deviceFingerprint,
+            });
+
+            // Handle post-login flow
+            await handlePostLoginFlow(response.pharmacy, (type, title, message) => {
+                showSnack(message);
+            });
+
+        } catch (error: any) {
+            console.error('Login error:', error);
+            const errorMessage = error?.message || 'Invalid credentials. Please try again.';
+            setApiError(errorMessage);
         }
     };
 
-    const handleGoogleLogin = () => {
-        showSnack('Google Sign-In coming soon!');
+    const handleForgotPassword = () => {
+        showSnack('Forgot password feature coming soon!');
     };
 
     return (
@@ -123,20 +124,32 @@ export function LoginScreen() {
                         Welcome back.
                     </ThemedText>
 
+                    {/* API Error */}
+                    {apiError ? (
+                        <View style={styles.apiErrorContainer}>
+                            <ThemedText style={styles.apiErrorText}>{apiError}</ThemedText>
+                        </View>
+                    ) : null}
+
                     {/* Form */}
                     <View style={styles.form}>
                         <Input
                             label="Email"
                             placeholder="Enter email"
                             value={email}
-                            onChangeText={setEmail}
+                            onChangeText={handleEmailChange}
+                            error={errors.email}
+                            // keyboardType="email-address"
+                            // autoCapitalize="none"
+                            // autoComplete="email"
                         />
 
                         <Input
                             label="Password"
                             placeholder="Enter Password"
                             value={password}
-                            onChangeText={setPassword}
+                            onChangeText={handlePasswordChange}
+                            error={errors.password}
                             secureTextEntry={!showPassword}
                             rightIcon={
                                 <Text style={{ color: colors.placeholder, fontSize: 13 }}>
@@ -146,7 +159,7 @@ export function LoginScreen() {
                             onRightIconPress={() => setShowPassword(p => !p)}
                         />
 
-                        <TouchableOpacity style={styles.forgotContainer}>
+                        <TouchableOpacity style={styles.forgotContainer} onPress={handleForgotPassword}>
                             <ThemedText
                                 type="link"
                                 style={[styles.forgotText, { color: colors.primary }]}
@@ -174,22 +187,6 @@ export function LoginScreen() {
                         disabled={loading}
                     />
 
-                    {/* <OrDivider /> */}
-
-                    {/* Google
-                    <TouchableOpacity
-                        style={[
-                            styles.googleButton,
-                            { borderColor: colorScheme === 'dark' ? '#3A3A3A' : '#E5E7EB' },
-                        ]}
-                        onPress={handleGoogleLogin}
-                    >
-                        <GoogleIcon />
-                        <ThemedText style={styles.googleButtonText}>
-                            Continue with Google
-                        </ThemedText>
-                    </TouchableOpacity> */}
-
                     {/* Sign Up */}
                     <View style={styles.signUpRow}>
                         <ThemedText style={[styles.signUpText, { color: colors.placeholder }]}>
@@ -206,15 +203,6 @@ export function LoginScreen() {
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
-
-            {/* ── Alert ── */}
-            <AppAlert
-                visible={alertVisible}
-                title={alertTitle}
-                message={alertMessage}
-                onConfirm={() => setAlertVisible(false)}
-                onCancel={() => setAlertVisible(false)}
-            />
 
             {/* ── Snackbar ── */}
             <AppSnackbar
@@ -243,6 +231,20 @@ const styles = StyleSheet.create({
     heading: { marginBottom: 4 },
     subheading: { fontSize: 14, marginBottom: 28 },
 
+    apiErrorContainer: {
+        backgroundColor: '#FEF2F2',
+        borderWidth: 1,
+        borderColor: '#FECACA',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 16,
+    },
+    apiErrorText: {
+        color: '#DC2626',
+        fontSize: 13,
+        textAlign: 'center',
+    },
+
     form: { gap: 4 },
 
     forgotContainer: {
@@ -253,27 +255,6 @@ const styles = StyleSheet.create({
     forgotText: { fontSize: 14 },
 
     spacer: { minHeight: 40 },
-
-    divider: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 20,
-        gap: 10,
-    },
-    dividerLine: { flex: 1, height: 1, backgroundColor: '#E5E7EB' },
-    dividerText: { fontSize: 13, color: '#8F90A4' },
-
-    googleButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderRadius: 8,
-        paddingVertical: 14,
-        paddingHorizontal: 20,
-        gap: 10,
-    },
-    googleButtonText: { fontSize: 16, fontWeight: '500' },
 
     signUpRow: {
         flexDirection: 'row',

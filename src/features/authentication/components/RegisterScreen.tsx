@@ -18,8 +18,20 @@ import {
     View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { AppAlert } from '@/shared/components/ui/Dialog';
+import { AppSnackbar } from '@/shared/components/ui/Snackbar';
 import { CountryCodePicker, CountryCodePickerValue } from '@/shared/components/ui/Countrycodepicker';
+import { useRegister } from '../hooks';
+import { handlePostRegisterFlow } from '../utils/postLoginFlow';
+import type { PharmacyRegisterRequest } from '../types';
+import {
+    validateRegisterStep1,
+    validateRegisterStep2,
+    validateRegisterStep3,
+    hasErrors,
+    RegisterStep1Errors,
+    RegisterStep2Errors,
+    RegisterStep3Errors,
+} from '../utils/validation';
 
 // ─── Step Indicator ──────────────────────────────────
 function StepIndicator({
@@ -86,104 +98,96 @@ export function RegisterScreen() {
     const [acceptedTerms, setAcceptedTerms] = useState(false);
 
     const [step, setStep] = useState(1);
-    const [loading, setLoading] = useState(false);
+    const { mutateAsync: registerMutation, isPending: loading } = useRegister();
 
-    // ── Alert ────────────────────────────────────────
-    const [alertVisible, setAlertVisible] = useState(false);
-    const [alertTitle, setAlertTitle] = useState('');
-    const [alertMessage, setAlertMessage] = useState('');
+    // ── Form errors ──────────────────────────────────
+    const [step1Errors, setStep1Errors] = useState<RegisterStep1Errors>({});
+    const [step2Errors, setStep2Errors] = useState<RegisterStep2Errors>({});
+    const [step3Errors, setStep3Errors] = useState<RegisterStep3Errors>({});
+    const [apiError, setApiError] = useState('');
 
-    const showAlert = (title: string, message: string) => {
-        setAlertTitle(title);
-        setAlertMessage(message);
-        setAlertVisible(true);
+    // ── Snackbar ─────────────────────────────────────
+    const [snackVisible, setSnackVisible] = useState(false);
+    const [snackMessage, setSnackMessage] = useState('');
+
+    const showSnack = (message: string) => {
+        setSnackMessage(message);
+        setSnackVisible(true);
     };
 
-    // ── Validation ───────────────────────────────────
-    const validateStep1 = (): boolean => {
-        if (!fullName.trim()) {
-            showAlert('Missing Field', 'Please enter your full name.');
-            return false;
-        }
-        if (!phone.trim()) {
-            showAlert('Missing Field', 'Please enter your phone number.');
-            return false;
-        }
-        if (!email.trim()) {
-            showAlert('Missing Field', 'Please enter your email address.');
-            return false;
-        }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            showAlert('Invalid Email', 'Please enter a valid email address.');
-            return false;
-        }
-        return true;
+    // ── Clear errors on input change ─────────────────
+    const clearStep1Error = (field: keyof RegisterStep1Errors) => {
+        if (step1Errors[field]) setStep1Errors(prev => ({ ...prev, [field]: undefined }));
+        if (apiError) setApiError('');
     };
 
-    const validateStep2 = (): boolean => {
-        if (!pharmacyName.trim()) {
-            showAlert('Missing Field', 'Please enter your pharmacy name.');
-            return false;
-        }
-        if (!registrationNumber.trim()) {
-            showAlert('Missing Field', 'Please enter your registration number.');
-            return false;
-        }
-        if (!address.trim()) {
-            showAlert('Missing Field', 'Please enter your address.');
-            return false;
-        }
-        if (!preferredUsername.trim()) {
-            showAlert('Missing Field', 'Please enter your preferred username.');
-            return false;
-        }
-        if (!primaryContact.trim()) {
-            showAlert('Missing Field', 'Please enter your primary contact number.');
-            return false;
-        }
-        return true;
+    const clearStep2Error = (field: keyof RegisterStep2Errors) => {
+        if (step2Errors[field]) setStep2Errors(prev => ({ ...prev, [field]: undefined }));
+        if (apiError) setApiError('');
     };
 
-    const validateStep3 = (): boolean => {
-        if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/.test(password)) {
-            showAlert(
-                'Weak Password',
-                'Must be at least 8 characters, contain uppercase, lowercase, number and symbol.'
-            );
-            return false;
-        }
-        if (password !== confirmPassword) {
-            showAlert('Password Mismatch', 'Passwords do not match.');
-            return false;
-        }
-        if (!acceptedTerms) {
-            showAlert('Terms Required', 'Please accept the Terms and Conditions.');
-            return false;
-        }
-        return true;
+    const clearStep3Error = (field: keyof RegisterStep3Errors) => {
+        if (step3Errors[field]) setStep3Errors(prev => ({ ...prev, [field]: undefined }));
+        if (apiError) setApiError('');
     };
 
     // ── Handlers ─────────────────────────────────────
     const handleContinue = () => {
         if (step === 1) {
-            if (validateStep1()) setStep(2);
+            const errors = validateRegisterStep1({ fullName, phone, email });
+            setStep1Errors(errors);
+            if (!hasErrors(errors)) setStep(2);
         } else if (step === 2) {
-            if (validateStep2()) setStep(3);
+            const errors = validateRegisterStep2({
+                pharmacyName,
+                registrationNumber,
+                address,
+                preferredUsername,
+                primaryContact,
+            });
+            setStep2Errors(errors);
+            if (!hasErrors(errors)) setStep(3);
         } else {
             handleRegister();
         }
     };
 
     const handleRegister = async () => {
-        if (!validateStep3()) return;
-        setLoading(true);
+        const errors = validateRegisterStep3({ password, confirmPassword, acceptedTerms });
+        setStep3Errors(errors);
+
+        if (hasErrors(errors)) return;
+
+        setApiError('');
+
         try {
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-            router.replace('/(tabs)');
-        } catch {
-            showAlert('Registration Failed', 'Something went wrong. Please try again.');
-        } finally {
-            setLoading(false);
+            // Format phone numbers with country code
+            const formattedPhone = `+${country.callingCode}${phone.replace(/^0+/, '')}`;
+            const formattedPrimaryContact = `+${primaryContactCountry.callingCode}${primaryContact.replace(/^0+/, '')}`;
+
+            const registerData: PharmacyRegisterRequest = {
+                fullName: fullName.trim(),
+                email: email.trim().toLowerCase(),
+                password,
+                pharmacyName: pharmacyName.trim(),
+                registrationNumber: registrationNumber.trim(),
+                address: address.trim(),
+                phone: formattedPhone,
+                primaryContactPerson: formattedPrimaryContact,
+                preferredUsername: preferredUsername.trim().toLowerCase(),
+            };
+
+            const response = await registerMutation(registerData);
+
+            // Handle post-register flow
+            await handlePostRegisterFlow(response.pharmacy, (type, title, message) => {
+                showSnack(message);
+            });
+
+        } catch (error: any) {
+            console.error('Registration error:', error);
+            const errorMessage = error?.message || 'Registration failed. Please try again.';
+            setApiError(errorMessage);
         }
     };
 
@@ -232,6 +236,13 @@ export function RegisterScreen() {
                         inactive={inactiveDot}
                     />
 
+                    {/* API Error */}
+                    {apiError ? (
+                        <View style={styles.apiErrorContainer}>
+                            <ThemedText style={styles.apiErrorText}>{apiError}</ThemedText>
+                        </View>
+                    ) : null}
+
                     {/* ── STEP 1 – Personal Information ── */}
                     {step === 1 && (
                         <View style={styles.form}>
@@ -243,7 +254,9 @@ export function RegisterScreen() {
                                 label="Full Name"
                                 placeholder="Enter name"
                                 value={fullName}
-                                onChangeText={setFullName}
+                                onChangeText={(text) => { setFullName(text); clearStep1Error('fullName'); }}
+                                error={step1Errors.fullName}
+                                // autoCapitalize="words"
                             />
 
                             {/* Phone row */}
@@ -258,7 +271,9 @@ export function RegisterScreen() {
                                         <Input
                                             placeholder="e.g. 8057735987"
                                             value={phone}
-                                            onChangeText={setPhone}
+                                            onChangeText={(text) => { setPhone(text); clearStep1Error('phone'); }}
+                                            error={step1Errors.phone}
+                                            // keyboardType="phone-pad"
                                             containerStyle={{ marginBottom: 0 }}
                                         />
                                     </View>
@@ -269,7 +284,11 @@ export function RegisterScreen() {
                                 label="Email Address"
                                 placeholder="Enter email"
                                 value={email}
-                                onChangeText={setEmail}
+                                onChangeText={(text) => { setEmail(text); clearStep1Error('email'); }}
+                                error={step1Errors.email}
+                                // keyboardType="email-address"
+                                // autoCapitalize="none"
+                                // autoComplete="email"
                             />
                         </View>
                     )}
@@ -285,28 +304,33 @@ export function RegisterScreen() {
                                 label="Pharmacy Name"
                                 placeholder="Enter pharmacy name"
                                 value={pharmacyName}
-                                onChangeText={setPharmacyName}
+                                onChangeText={(text) => { setPharmacyName(text); clearStep2Error('pharmacyName'); }}
+                                error={step2Errors.pharmacyName}
                             />
 
                             <Input
                                 label="Registration Number"
                                 placeholder="Enter registration number"
                                 value={registrationNumber}
-                                onChangeText={setRegistrationNumber}
+                                onChangeText={(text) => { setRegistrationNumber(text); clearStep2Error('registrationNumber'); }}
+                                error={step2Errors.registrationNumber}
                             />
 
                             <Input
                                 label="Address"
                                 placeholder="Enter address"
                                 value={address}
-                                onChangeText={setAddress}
+                                onChangeText={(text) => { setAddress(text); clearStep2Error('address'); }}
+                                error={step2Errors.address}
                             />
 
                             <Input
                                 label="Preferred Username"
                                 placeholder="Enter username"
                                 value={preferredUsername}
-                                onChangeText={setPreferredUsername}
+                                onChangeText={(text) => { setPreferredUsername(text); clearStep2Error('preferredUsername'); }}
+                                error={step2Errors.preferredUsername}
+                                // autoCapitalize="none"
                             />
 
                             {/* Primary Contact row */}
@@ -321,7 +345,9 @@ export function RegisterScreen() {
                                         <Input
                                             placeholder="e.g. 8057735987"
                                             value={primaryContact}
-                                            onChangeText={setPrimaryContact}
+                                            onChangeText={(text) => { setPrimaryContact(text); clearStep2Error('primaryContact'); }}
+                                            error={step2Errors.primaryContact}
+                                            // keyboardType="phone-pad"
                                             containerStyle={{ marginBottom: 0 }}
                                         />
                                     </View>
@@ -341,7 +367,8 @@ export function RegisterScreen() {
                                 label="Password"
                                 placeholder="Enter Password"
                                 value={password}
-                                onChangeText={setPassword}
+                                onChangeText={(text) => { setPassword(text); clearStep3Error('password'); }}
+                                error={step3Errors.password}
                                 secureTextEntry={!showPassword}
                                 rightIcon={
                                     <Text style={{ color: colors.placeholder, fontSize: 13 }}>
@@ -355,7 +382,8 @@ export function RegisterScreen() {
                                 label="Confirm Password"
                                 placeholder="Re-enter Password"
                                 value={confirmPassword}
-                                onChangeText={setConfirmPassword}
+                                onChangeText={(text) => { setConfirmPassword(text); clearStep3Error('confirmPassword'); }}
+                                error={step3Errors.confirmPassword}
                                 secureTextEntry={!showConfirm}
                                 rightIcon={
                                     <Text style={{ color: colors.placeholder, fontSize: 13 }}>
@@ -374,7 +402,7 @@ export function RegisterScreen() {
                             <View style={styles.termsRow}>
                                 <Checkbox
                                     checked={acceptedTerms}
-                                    onToggle={() => setAcceptedTerms(p => !p)}
+                                    onToggle={() => { setAcceptedTerms(p => !p); clearStep3Error('acceptedTerms'); }}
                                 />
                                 <View style={styles.termsTextRow}>
                                     <ThemedText style={[styles.termsText, { color: colors.placeholder }]}>
@@ -390,6 +418,9 @@ export function RegisterScreen() {
                                     </TouchableOpacity>
                                 </View>
                             </View>
+                            {step3Errors.acceptedTerms && (
+                                <ThemedText style={styles.termsError}>{step3Errors.acceptedTerms}</ThemedText>
+                            )}
                         </View>
                     )}
 
@@ -422,13 +453,11 @@ export function RegisterScreen() {
                 </ScrollView>
             </KeyboardAvoidingView>
 
-            {/* Alert */}
-            <AppAlert
-                visible={alertVisible}
-                title={alertTitle}
-                message={alertMessage}
-                onConfirm={() => setAlertVisible(false)}
-                onCancel={() => setAlertVisible(false)}
+            {/* Snackbar */}
+            <AppSnackbar
+                visible={snackVisible}
+                message={snackMessage}
+                onDismiss={() => setSnackVisible(false)}
             />
         </ThemedView>
     );
@@ -461,6 +490,20 @@ const styles = StyleSheet.create({
     },
     stepDot: { height: 8, borderRadius: 4 },
 
+    apiErrorContainer: {
+        backgroundColor: '#FEF2F2',
+        borderWidth: 1,
+        borderColor: '#FECACA',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 16,
+    },
+    apiErrorText: {
+        color: '#DC2626',
+        fontSize: 13,
+        textAlign: 'center',
+    },
+
     sectionLabel: { fontSize: 16, fontWeight: '700', marginBottom: 16 },
 
     form: { gap: 4 },
@@ -470,7 +513,7 @@ const styles = StyleSheet.create({
     phoneContainer: { marginBottom: 16 },
     phoneRow: {
         flexDirection: 'row',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         gap: 8,
     },
     phoneFlex: { flex: 1 },
@@ -487,6 +530,7 @@ const styles = StyleSheet.create({
     },
     termsText: { fontSize: 13 },
     termsLink: { fontSize: 13, fontWeight: '600' },
+    termsError: { color: '#EF4444', fontSize: 12, marginTop: 4, marginLeft: 28 },
 
     spacer: { minHeight: 32 },
 

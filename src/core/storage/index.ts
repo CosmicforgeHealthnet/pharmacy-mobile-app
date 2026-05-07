@@ -188,6 +188,17 @@ class Storage {
    async getAllKeys(): Promise<readonly string[]> {
       return AsyncStorage.getAllKeys();
    }
+
+   // ── Device Fingerprint ──────────────────────────────────────────────────────
+
+   async getDeviceFingerprint(): Promise<string> {
+      let fp = await asyncGet<string>("@device_fingerprint");
+      if (!fp) {
+         fp = "mobile_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+         await asyncSet("@device_fingerprint", fp);
+      }
+      return fp;
+   }
 }
 
 export const storage = new Storage();

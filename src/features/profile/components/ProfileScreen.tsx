@@ -13,7 +13,11 @@ import {
     Switch,
     TouchableOpacity,
     View,
+    ActivityIndicator,
 } from 'react-native';
+import { useProfile, useLogout, useUpdateProfile } from '@/features/authentication/hooks/useAuth';
+import { useAppTheme } from '@/core/providers/AppThemeProvider';
+import type { OperatingHours } from '@/features/authentication/types';
 
 // ─── Types ───────────────────────────────────────────
 interface MenuItemProps {
@@ -24,6 +28,7 @@ interface MenuItemProps {
     onPress?: () => void;
     colors: typeof Colors.light;
     danger?: boolean;
+    loading?: boolean;
 }
 
 interface ToggleItemProps {
@@ -32,18 +37,24 @@ interface ToggleItemProps {
     value: boolean;
     onToggle: (value: boolean) => void;
     colors: typeof Colors.light;
+    loading?: boolean;
 }
 
 // ─── Menu Item ───────────────────────────────────────
-function MenuItem({ icon, label, value, showArrow = true, onPress, colors, danger }: MenuItemProps) {
+function MenuItem({ icon, label, value, showArrow = true, onPress, colors, danger, loading }: MenuItemProps) {
     return (
         <TouchableOpacity
             style={styles.menuItem}
             onPress={onPress}
             activeOpacity={0.7}
+            disabled={loading || !onPress}
         >
             <View style={[styles.menuIconContainer, { backgroundColor: danger ? '#FEE2E2' : `${colors.primary}15` }]}>
-                <Ionicons name={icon} size={20} color={danger ? '#DC2626' : colors.primary} />
+                {loading ? (
+                    <ActivityIndicator size="small" color={danger ? '#DC2626' : colors.primary} />
+                ) : (
+                    <Ionicons name={icon} size={20} color={danger ? '#DC2626' : colors.primary} />
+                )}
             </View>
             <View style={styles.menuContent}>
                 <ThemedText style={[styles.menuLabel, danger && { color: '#DC2626' }]}>{label}</ThemedText>
@@ -53,7 +64,7 @@ function MenuItem({ icon, label, value, showArrow = true, onPress, colors, dange
                     </ThemedText>
                 )}
             </View>
-            {showArrow && (
+            {showArrow && !loading && (
                 <Ionicons name="chevron-forward" size={20} color={colors.placeholder} />
             )}
         </TouchableOpacity>
@@ -61,11 +72,15 @@ function MenuItem({ icon, label, value, showArrow = true, onPress, colors, dange
 }
 
 // ─── Toggle Item ─────────────────────────────────────
-function ToggleItem({ icon, label, value, onToggle, colors }: ToggleItemProps) {
+function ToggleItem({ icon, label, value, onToggle, colors, loading }: ToggleItemProps) {
     return (
         <View style={styles.menuItem}>
             <View style={[styles.menuIconContainer, { backgroundColor: `${colors.primary}15` }]}>
-                <Ionicons name={icon} size={20} color={colors.primary} />
+                {loading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                    <Ionicons name={icon} size={20} color={colors.primary} />
+                )}
             </View>
             <View style={styles.menuContent}>
                 <ThemedText style={styles.menuLabel}>{label}</ThemedText>
@@ -73,6 +88,7 @@ function ToggleItem({ icon, label, value, onToggle, colors }: ToggleItemProps) {
             <Switch
                 value={value}
                 onValueChange={onToggle}
+                disabled={loading}
                 trackColor={{ false: '#E5E7EB', true: `${colors.primary}50` }}
                 thumbColor={value ? colors.primary : '#FFFFFF'}
             />
@@ -87,21 +103,28 @@ function SectionHeader({ title }: { title: string }) {
     );
 }
 
+// ─── Helpers ──────────────────────────────────────────
+function formatHours(hours?: OperatingHours) {
+    if (!hours) return 'Not configured';
+    const days = Object.keys(hours);
+    if (days.length === 0) return 'Closed';
+    if (days.length === 7) return 'Open 24/7 (Everyday)';
+    return `${days.length} days configured`;
+}
+
 // ─── Profile Screen ──────────────────────────────────
 export function ProfileScreen() {
     const colorScheme = useColorScheme() ?? 'light';
     const colors = Colors[colorScheme];
-    const [notifications, setNotifications] = React.useState(true);
-    const [darkMode, setDarkMode] = React.useState(colorScheme === 'dark');
+    
+    const { data: profileData, isLoading: loadingProfile } = useProfile();
+    const logoutMutation = useLogout();
+    const updateProfile = useUpdateProfile();
+    const { theme, toggleTheme } = useAppTheme();
 
-    // Mock profile data - replace with actual API data
-    const profile = {
-        pharmacyName: 'CosmicForge Pharmacy',
-        email: 'pharmacy@cosmicforge.com',
-        phone: '+234 805 773 5987',
-        address: '123 Health Street, Lagos',
-        registrationNumber: 'PCN-12345',
-    };
+    const isDark = theme === 'dark';
+
+    const profile = profileData?.pharmacy;
 
     const handleLogout = () => {
         Alert.alert(
@@ -112,13 +135,46 @@ export function ProfileScreen() {
                 {
                     text: 'Logout',
                     style: 'destructive',
-                    onPress: () => {
-                        router.replace('/(auth)/login');
+                    onPress: async () => {
+                        try {
+                            await logoutMutation.mutateAsync();
+                            router.replace('/(auth)/login');
+                        } catch (error) {
+                            console.error('Logout failed:', error);
+                            router.replace('/(auth)/login');
+                        }
                     },
                 },
             ]
         );
     };
+
+    const toggleNotifications = async (val: boolean) => {
+        try {
+            await updateProfile.mutateAsync({
+                notificationPreferences: {
+                    ...profile?.notificationPreferences,
+                    push: {
+                        ...profile?.notificationPreferences?.push,
+                        newOrder: val,
+                        orderStatusUpdate: val,
+                    }
+                }
+            });
+        } catch (error) {
+            Alert.alert('Error', 'Failed to update notification preferences');
+        }
+    };
+
+    if (loadingProfile && !profile) {
+        return (
+            <ThemedView style={[styles.container, styles.centered]}>
+                <ActivityIndicator size="large" color={colors.primary} />
+            </ThemedView>
+        );
+    }
+
+    const pushEnabled = !!(profile?.notificationPreferences?.push?.newOrder || profile?.notificationPreferences?.push?.orderStatusUpdate);
 
     return (
         <ThemedView style={styles.container}>
@@ -133,159 +189,116 @@ export function ProfileScreen() {
                 </View>
 
                 {/* Profile Card */}
-                <View style={[styles.profileCard, { backgroundColor: colors.background }]}>
+                <View style={[styles.profileCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
                     <View style={[styles.avatarContainer, { backgroundColor: colors.primary }]}>
-                        <ThemedText style={styles.avatarText}>
-                            {profile.pharmacyName.charAt(0)}
-                        </ThemedText>
+                        {profile?.logoUrl ? (
+                            <Image source={{ uri: profile.logoUrl }} style={styles.avatarImage} />
+                        ) : (
+                            <ThemedText style={styles.avatarText}>
+                                {profile?.pharmacyName?.charAt(0) || 'P'}
+                            </ThemedText>
+                        )}
                     </View>
                     <View style={styles.profileInfo}>
-                        <ThemedText style={styles.pharmacyName}>{profile.pharmacyName}</ThemedText>
+                        <ThemedText style={styles.pharmacyName}>{profile?.pharmacyName || 'Loading...'}</ThemedText>
                         <ThemedText style={[styles.registrationNumber, { color: colors.placeholder }]}>
-                            {profile.registrationNumber}
+                            {profile?.registrationNumber || 'No registration number'}
                         </ThemedText>
                     </View>
-                    <TouchableOpacity style={[styles.editButton, { borderColor: colors.primary }]}>
+                    <TouchableOpacity
+                        style={[styles.editButton, { borderColor: colors.primary }]}
+                        onPress={() => router.push('/profile/pharmacy-info')}
+                    >
                         <Ionicons name="pencil" size={16} color={colors.primary} />
                     </TouchableOpacity>
                 </View>
 
                 {/* Pharmacy Information */}
-                <View style={[styles.section, { backgroundColor: colors.background }]}>
+                <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.border }]}>
                     <SectionHeader title="Pharmacy Information" />
                     <MenuItem
                         icon="business-outline"
-                        label="Pharmacy Name"
-                        value={profile.pharmacyName}
-                        showArrow={false}
+                        label="Pharmacy Details"
+                        value={profile?.pharmacyName}
+                        onPress={() => router.push('/profile/pharmacy-info')}
                         colors={colors}
                     />
-                    <MenuItem
-                        icon="mail-outline"
-                        label="Email"
-                        value={profile.email}
-                        showArrow={false}
-                        colors={colors}
-                    />
-                    <MenuItem
-                        icon="call-outline"
-                        label="Phone"
-                        value={profile.phone}
-                        showArrow={false}
-                        colors={colors}
-                    />
-                    <MenuItem
-                        icon="location-outline"
-                        label="Address"
-                        value={profile.address}
-                        showArrow={false}
-                        colors={colors}
-                    />
-                </View>
-
-                {/* Operating Hours */}
-                <View style={[styles.section, { backgroundColor: colors.background }]}>
-                    <SectionHeader title="Operating Hours" />
                     <MenuItem
                         icon="time-outline"
-                        label="Business Hours"
-                        value="Mon-Sat: 8AM - 9PM"
-                        onPress={() => {}}
+                        label="Operating Hours"
+                        value={formatHours(profile?.operatingHours)}
+                        onPress={() => router.push('/profile/operating-hours')}
+                        colors={colors}
+                    />
+                    <MenuItem
+                        icon="pricetags-outline"
+                        label="Pricing Configuration"
+                        onPress={() => router.push('/profile/pricing')}
                         colors={colors}
                     />
                 </View>
 
                 {/* Notifications */}
-                <View style={[styles.section, { backgroundColor: colors.background }]}>
+                <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.border }]}>
                     <SectionHeader title="Notifications" />
                     <ToggleItem
                         icon="notifications-outline"
                         label="Push Notifications"
-                        value={notifications}
-                        onToggle={setNotifications}
+                        value={pushEnabled}
+                        onToggle={toggleNotifications}
                         colors={colors}
+                        loading={updateProfile.isPending}
                     />
                     <MenuItem
-                        icon="mail-outline"
-                        label="Email Notifications"
-                        onPress={() => {}}
+                        icon="settings-outline"
+                        label="Notification Settings"
+                        onPress={() => router.push('/profile/notifications')}
                         colors={colors}
                     />
                 </View>
 
                 {/* Preferences */}
-                <View style={[styles.section, { backgroundColor: colors.background }]}>
+                <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.border }]}>
                     <SectionHeader title="Preferences" />
                     <ToggleItem
                         icon="moon-outline"
                         label="Dark Mode"
-                        value={darkMode}
-                        onToggle={setDarkMode}
-                        colors={colors}
-                    />
-                    <MenuItem
-                        icon="language-outline"
-                        label="Language"
-                        value="English"
-                        onPress={() => {}}
+                        value={isDark}
+                        onToggle={toggleTheme}
                         colors={colors}
                     />
                 </View>
 
                 {/* Account */}
-                <View style={[styles.section, { backgroundColor: colors.background }]}>
+                <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.border }]}>
                     <SectionHeader title="Account" />
+                    <MenuItem
+                        icon="person-outline"
+                        label="Account Settings"
+                        onPress={() => router.push('/profile/account-settings')}
+                        colors={colors}
+                    />
                     <MenuItem
                         icon="people-outline"
                         label="Staff Management"
-                        onPress={() => {}}
-                        colors={colors}
-                    />
-                    <MenuItem
-                        icon="lock-closed-outline"
-                        label="Change Password"
-                        onPress={() => {}}
-                        colors={colors}
-                    />
-                    <MenuItem
-                        icon="shield-checkmark-outline"
-                        label="Privacy & Security"
-                        onPress={() => {}}
+                        onPress={() => router.push('/profile/staff')}
                         colors={colors}
                     />
                 </View>
 
                 {/* Support */}
-                <View style={[styles.section, { backgroundColor: colors.background }]}>
+                <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.border }]}>
                     <SectionHeader title="Support" />
                     <MenuItem
                         icon="help-circle-outline"
-                        label="Help Center"
-                        onPress={() => {}}
-                        colors={colors}
-                    />
-                    <MenuItem
-                        icon="chatbox-outline"
-                        label="Contact Support"
-                        onPress={() => {}}
-                        colors={colors}
-                    />
-                    <MenuItem
-                        icon="document-text-outline"
-                        label="Terms of Service"
-                        onPress={() => {}}
-                        colors={colors}
-                    />
-                    <MenuItem
-                        icon="shield-outline"
-                        label="Privacy Policy"
-                        onPress={() => {}}
+                        label="Help & Support"
+                        onPress={() => router.push('/profile/support')}
                         colors={colors}
                     />
                 </View>
 
                 {/* Logout */}
-                <View style={[styles.section, { backgroundColor: colors.background }]}>
+                <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.border }]}>
                     <MenuItem
                         icon="log-out-outline"
                         label="Logout"
@@ -293,6 +306,7 @@ export function ProfileScreen() {
                         onPress={handleLogout}
                         colors={colors}
                         danger
+                        loading={logoutMutation.isPending}
                     />
                 </View>
 
@@ -307,10 +321,13 @@ export function ProfileScreen() {
     );
 }
 
-// ─── Styles ──────────────────────────────────────────
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+    },
+    centered: {
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     scrollView: {
         flex: 1,
@@ -334,6 +351,7 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         padding: 16,
         borderRadius: 12,
+        borderWidth: 1,
     },
     avatarContainer: {
         width: 60,
@@ -341,6 +359,11 @@ const styles = StyleSheet.create({
         borderRadius: 30,
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'hidden',
+    },
+    avatarImage: {
+        width: '100%',
+        height: '100%',
     },
     avatarText: {
         color: '#FFFFFF',
@@ -372,9 +395,10 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         borderRadius: 12,
         paddingVertical: 8,
+        borderWidth: 1,
     },
     sectionHeader: {
-        fontSize: 13,
+        fontSize: 11,
         fontWeight: '600',
         color: '#6B7280',
         paddingHorizontal: 16,

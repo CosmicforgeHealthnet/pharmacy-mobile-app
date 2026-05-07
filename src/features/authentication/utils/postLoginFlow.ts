@@ -1,76 +1,76 @@
-import { router } from "expo-router";
-import { doctorService } from "@/shared/services/doctor";
-import { storage } from "@/core/storage";
+import { router } from 'expo-router';
+import { storage } from '@/core/storage';
+import type { Pharmacy } from '../types';
 
-const USER_STATUS = {
-    PENDING_EMAIL_VERIFICATION: "pending_email_verification",
-    PENDING_DOCTOR_VERIFICATION: "pending_doctor_verification",
+/**
+ * Handles routing after successful login based on pharmacy verification status
+ */
+export const handlePostLoginFlow = async (
+    pharmacy: Pharmacy,
+    showToast?: (type: 'success' | 'info' | 'error', title: string, message: string) => void
+): Promise<void> => {
+    try {
+        console.log('>>> EXECUTING POST-LOGIN FLOW FOR PHARMACY:', pharmacy.id, '<<<');
+
+        // Check verification status
+        const isFullyVerified = pharmacy.verificationStatus === 'approved' && pharmacy.isActive;
+        const isPendingDocuments = pharmacy.verificationStatus === 'pending_documents' || !pharmacy.documentsSubmitted;
+        const isPendingVerification = pharmacy.verificationStatus === 'pending';
+
+        // Store verification status for app state
+        await storage.setNeedsVerification(!isFullyVerified);
+
+        // Route based on status
+        if (isPendingDocuments) {
+            console.log('>>> ROUTING TO DOCUMENTS: Documents not submitted <<<');
+            showToast?.('info', 'Documents Required', 'Please submit your pharmacy documents to continue.');
+            router.replace('/(auth)/validation');
+            return;
+        }
+
+        if (isPendingVerification) {
+            console.log('>>> ROUTING TO DASHBOARD: Pending verification <<<');
+            showToast?.('info', 'Verification Pending', 'Your pharmacy is under review. You can still access the dashboard.');
+            router.replace('/(tabs)');
+            return;
+        }
+
+        if (!isFullyVerified) {
+            console.log('>>> ROUTING TO DASHBOARD: Not fully verified <<<');
+            showToast?.('info', 'Welcome', 'Your account is being processed.');
+            router.replace('/(tabs)');
+            return;
+        }
+
+        // Fully verified - go to dashboard
+        console.log('>>> ROUTING TO DASHBOARD: Fully verified <<<');
+        showToast?.('success', 'Welcome back!', `Hello ${pharmacy.pharmacyName}!`);
+        router.replace('/(tabs)');
+
+    } catch (error) {
+        console.error('!!! ERROR IN POST-LOGIN FLOW !!!', error);
+        // Fallback to dashboard
+        router.replace('/(tabs)');
+    }
 };
 
 /**
- * Shared logic to handle routing and profile fetching after a successful login
- * (Standard Login, Google, Magic Link)
+ * Handles routing after successful registration
  */
-export const handlePostLoginFlow = async (
-   userData: any,
-   toast: any,
-   routerInstance: typeof router
-) => {
-   try {
-      const userId = userData.id || userData.sub;
-      console.log(" >>> EXECUTING SHARED POST-LOGIN FLOW FOR:", userId, "<<< ");
+export const handlePostRegisterFlow = async (
+    pharmacy: Pharmacy,
+    showToast?: (type: 'success' | 'info' | 'error', title: string, message: string) => void
+): Promise<void> => {
+    try {
+        console.log('>>> EXECUTING POST-REGISTER FLOW FOR PHARMACY:', pharmacy.id, '<<<');
 
-      // 1. Fetch Doctor Profile
-      const profileResponse = await doctorService.getDoctorProfile(userId);
-      console.log("Doctor Profile Data on Login:", JSON.stringify(profileResponse, null, 2));
+        showToast?.('success', 'Registration Successful!', 'Please check your email to verify your account.');
 
-      // 2. Profile Setup Check: If null, must set up profile first
-      if (!profileResponse || (profileResponse as any).doctorProfile === null) {
-         console.log(" >>> ROUTING TO PROFILE SETUP: Profile is missing <<< ");
-         toast.info("Complete Your Profile", "Please set up your professional profile to continue.");
-         routerInstance.replace("/profile-setup");
-         return;
-      }
+        // After registration, go to login
+        router.replace('/(auth)/login');
 
-      // 3. Verification Logic
-      // Check if verification has been submitted or if doctor is already active
-      const isFullyVerified = 
-         userData?.isVerified === true ||
-         userData?.status === "doctor_active" ||
-         userData?.status === "active" ||
-         userData?.status === "approved" ||
-         userData?.verificationStatus === "approved";
-
-      const hasSubmittedVerification =
-         userData?.verificationStatus === "pending" ||
-         userData?.verificationStatus === "in_progress" ||
-         userData?.verificationStatus === "pending_documents" ||
-         userData?.verificationStatus === "pending_verification";
-
-      // Doctor needs verification page if NOT verified AND hasn't even submitted yet
-      const needsVerificationPage = !isFullyVerified && !hasSubmittedVerification;
-
-      // Store verification status for app restart persistence (Drawer menu visibility, etc.)
-      await storage.setNeedsVerification(needsVerificationPage);
-
-      if (needsVerificationPage) {
-         console.log(" >>> ROUTING TO VERIFICATION: Account not verified <<< ");
-         toast.info(
-            "Verification Required",
-            "Kindly finish your verification so patients can connect with you.",
-         );
-         routerInstance.replace("/verification");
-         return;
-      }
-
-      // 4. Default Success Routing (Dashboard)
-      console.log(" >>> ROUTING TO DASHBOARD: Flow complete <<< ");
-      toast.success("Welcome back!", `Hello ${userData?.fullName || userData?.name || "there"}!`);
-      routerInstance.replace("/(drawer)/(tabs)");
-
-   } catch (error) {
-      console.error(" !!! ERROR IN POST-LOGIN FLOW !!! ", error);
-      // Fallback: If profile fetch strictly fails but user is logged in, try to reach dashboard
-      routerInstance.replace("/(drawer)/(tabs)");
-   }
+    } catch (error) {
+        console.error('!!! ERROR IN POST-REGISTER FLOW !!!', error);
+        router.replace('/(auth)/login');
+    }
 };

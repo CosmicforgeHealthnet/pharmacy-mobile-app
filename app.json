@@ -43,6 +43,9 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "apiUrl": "https://dev-api.cosmicforge-healthnet.com/api"
     }
   }
 }

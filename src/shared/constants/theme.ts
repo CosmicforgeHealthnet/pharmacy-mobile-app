@@ -17,6 +17,7 @@ export const Colors = {
     primary: "#272EA7",
     inputBackground: "#F5F5F5",
     placeholder: "#8F90A4",
+    border: "#E5E7EB",
   },
   dark: {
     text: "#ECEDEE",
@@ -28,6 +29,7 @@ export const Colors = {
     primary: "#272EA7",
     inputBackground: "#2A2A2A",
     placeholder: "#9BA1A6",
+    border: "#333333",
   },
 };
 
