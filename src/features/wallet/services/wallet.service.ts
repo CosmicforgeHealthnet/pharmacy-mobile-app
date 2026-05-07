@@ -36,7 +36,6 @@ export class WalletService {
        dateTo?: string;
     }) {
        const response = await apiClient.get<any>(WALLET_URLS.TRANSACTIONS, { params });
-       console.log("Transactions response:", response);
        return response?.transactions ?? { transactions: [], total: 0 };
     }
  

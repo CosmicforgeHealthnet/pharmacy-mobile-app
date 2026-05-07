@@ -11,12 +11,17 @@
     "ios": {
       "supportsTablet": true
     },
+    "splash": {
+      "image": "./assets/images/cosmic-log.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/cosmic-log.png",
+        "backgroundImage": "./assets/images/cosmic-log.png",
+        "monochromeImage": "./assets/images/cosmic-log.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false

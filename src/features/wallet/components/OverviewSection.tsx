@@ -137,7 +137,6 @@ export function OverviewSection({
 
     // Fetch own transactions internally
     const { data: txData } = useWalletTransactions();
-    console.log("Wallet Transactions Data:", txData);
     const transactions = txData ?? [];
 
     const formatCurrency = (amount: number) =>
