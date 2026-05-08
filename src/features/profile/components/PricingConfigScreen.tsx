@@ -18,26 +18,22 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { usePricing, useSetPricing, useDeletePricing } from '@/features/authentication/hooks/useAuth';
-import type { PricingItem, SetPricingPayload } from '@/features/authentication/types';
+import { usePricing, useSetPricing, useDeletePricing, useProfile } from '@/features/authentication/hooks/useAuth';
+import { CURRENCY_SYMBOLS } from '@/shared/constants/currency';
+import type { PricingItem } from '@/features/authentication/types';
 
+// Fallback currency options if no location-based currency is set
 const CURRENCY_OPTIONS = [
     { value: 'NGN', label: 'NGN', symbol: '₦' },
     { value: 'USD', label: 'USD', symbol: '$' },
 ];
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-    NGN: '₦',
-    USD: '$',
-    EUR: '€',
-    GBP: '£',
-};
 
 export function PricingConfigScreen() {
     const router = useRouter();
     const colorScheme = useColorScheme() ?? 'light';
     const colors = Colors[colorScheme];
 
+    const { data: profile } = useProfile();
     const { data: pricing = [], isLoading, refetch, isRefetching } = usePricing();
     const setPricing = useSetPricing();
     const deletePricing = useDeletePricing();
@@ -51,8 +47,8 @@ export function PricingConfigScreen() {
     const [price, setPrice] = useState('');
     const [currency, setCurrency] = useState('NGN');
 
-    // Derive locked currency from existing pricing
-    const lockedCurrency = pricing.length > 0 ? pricing[0].currency : null;
+    // Use the pharmacy's default currency (set based on location during registration)
+    const lockedCurrency = profile?.pharmacy?.defaultCurrency ?? null;
 
     const resetForm = () => {
         setFeeType('');
@@ -181,7 +177,7 @@ export function PricingConfigScreen() {
                 <View style={[styles.currencyNotice, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}30` }]}>
                     <Ionicons name="lock-closed" size={16} color={colors.primary} />
                     <ThemedText style={[styles.currencyNoticeText, { color: colors.primary }]}>
-                        All pricing is locked to {lockedCurrency} ({CURRENCY_SYMBOLS[lockedCurrency]})
+                        Currency set to {lockedCurrency} ({CURRENCY_SYMBOLS[lockedCurrency]}) based on your location
                     </ThemedText>
                 </View>
             )}
@@ -280,7 +276,7 @@ export function PricingConfigScreen() {
                                 <View style={[styles.lockedCurrency, { backgroundColor: colors.inputBackground }]}>
                                     <Ionicons name="lock-closed" size={16} color={colors.placeholder} />
                                     <ThemedText style={{ color: colors.text }}>
-                                        {lockedCurrency} ({CURRENCY_SYMBOLS[lockedCurrency]})
+                                        {lockedCurrency} ({CURRENCY_SYMBOLS[lockedCurrency]}) - Based on location
                                     </ThemedText>
                                 </View>
                             ) : (

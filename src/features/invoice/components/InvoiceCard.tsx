@@ -4,7 +4,7 @@ import { useColorScheme } from '@/shared/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Invoice } from '../types';
+import { Invoice, getInvoiceRef } from '../types';
 
 interface InvoiceCardProps {
     invoice: Invoice;
@@ -94,7 +94,7 @@ export function InvoiceCard({ invoice, onPress }: InvoiceCardProps) {
                 <View style={styles.headerInfo}>
                     <View style={styles.titleRow}>
                         <ThemedText style={styles.invoiceRef}>
-                            Invoice {invoice.invoiceRef}
+                            Invoice {getInvoiceRef(invoice)}
                         </ThemedText>
                         <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(invoice.status)}15` }]}>
                             <Ionicons

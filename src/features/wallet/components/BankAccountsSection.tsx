@@ -3,7 +3,7 @@ import { ThemedView } from '@/shared/components/themed-view';
 import { Colors } from '@/shared/constants/theme';
 import { useColorScheme } from '@/shared/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -22,33 +22,10 @@ import {
 } from '../hooks/useWallet';
 import type { BankAccount, AddBankAccountPayload } from '../types';
 
-// Nigerian Banks List
-const NIGERIAN_BANKS = [
-    { code: '044', name: 'Access Bank' },
-    { code: '023', name: 'Citibank Nigeria' },
-    { code: '063', name: 'Diamond Bank' },
-    { code: '050', name: 'Ecobank Nigeria' },
-    { code: '084', name: 'Enterprise Bank' },
-    { code: '070', name: 'Fidelity Bank' },
-    { code: '011', name: 'First Bank of Nigeria' },
-    { code: '214', name: 'First City Monument Bank' },
-    { code: '058', name: 'Guaranty Trust Bank' },
-    { code: '030', name: 'Heritage Bank' },
-    { code: '301', name: 'Jaiz Bank' },
-    { code: '082', name: 'Keystone Bank' },
-    { code: '526', name: 'Parallex Bank' },
-    { code: '076', name: 'Polaris Bank' },
-    { code: '101', name: 'Providus Bank' },
-    { code: '221', name: 'Stanbic IBTC Bank' },
-    { code: '068', name: 'Standard Chartered Bank' },
-    { code: '232', name: 'Sterling Bank' },
-    { code: '100', name: 'Suntrust Bank' },
-    { code: '032', name: 'Union Bank of Nigeria' },
-    { code: '033', name: 'United Bank For Africa' },
-    { code: '215', name: 'Unity Bank' },
-    { code: '035', name: 'Wema Bank' },
-    { code: '057', name: 'Zenith Bank' },
-];
+interface Bank {
+    code: string;
+    name: string;
+}
 
 interface BankAccountItemProps {
     account: BankAccount;
@@ -125,11 +102,52 @@ export function BankAccountsSection() {
 
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
     const [isBankPickerVisible, setIsBankPickerVisible] = useState(false);
-    const [selectedBank, setSelectedBank] = useState<{ code: string; name: string } | null>(null);
+    const [selectedBank, setSelectedBank] = useState<Bank | null>(null);
     const [accountNumber, setAccountNumber] = useState('');
     const [accountName, setAccountName] = useState('');
     const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [bankSearch, setBankSearch] = useState('');
+
+    // Paystack banks state
+    const [banks, setBanks] = useState<Bank[]>([]);
+    const [loadingBanks, setLoadingBanks] = useState(false);
+    const [banksError, setBanksError] = useState('');
+
+    // Fetch banks from Paystack when modal opens
+    useEffect(() => {
+        if (!isAddModalVisible) return;
+
+        const fetchBanks = async () => {
+            setLoadingBanks(true);
+            setBanksError('');
+            try {
+                const res = await fetch(
+                    'https://api.paystack.co/bank?currency=NGN&per_page=100'
+                );
+                const json = await res.json();
+                if (json.status) {
+                    setBanks(
+                        json.data.map((b: any) => ({ name: b.name, code: b.code }))
+                    );
+                } else {
+                    setBanksError('Failed to load banks');
+                }
+            } catch {
+                setBanksError('Failed to load banks. Please try again.');
+            } finally {
+                setLoadingBanks(false);
+            }
+        };
+
+        fetchBanks();
+    }, [isAddModalVisible]);
+
+    // Filter banks based on search
+    const filteredBanks = banks.filter((bank) =>
+        bank.name.toLowerCase().includes(bankSearch.toLowerCase())
+    );
+
 
     const { data: bankAccountsData, isLoading } = useBankAccounts();
     const { mutateAsync: addBankAccount, isPending: isAdding } = useAddBankAccount();
@@ -142,6 +160,7 @@ export function BankAccountsSection() {
         setSelectedBank(null);
         setAccountNumber('');
         setAccountName('');
+        setBankSearch('');
     };
 
     const handleAddAccount = async () => {
@@ -311,15 +330,25 @@ export function BankAccountsSection() {
                                     { backgroundColor: colors.inputBackground, borderColor: colors.border }
                                 ]}
                                 onPress={() => setIsBankPickerVisible(true)}
+                                disabled={loadingBanks}
                             >
                                 <ThemedText style={[
                                     styles.selectInputText,
                                     { color: selectedBank ? colors.text : colors.placeholder }
                                 ]}>
-                                    {selectedBank?.name || 'Select a bank'}
+                                    {loadingBanks ? 'Loading banks...' : (selectedBank?.name || 'Select a bank')}
                                 </ThemedText>
-                                <Ionicons name="chevron-down" size={20} color={colors.placeholder} />
+                                {loadingBanks ? (
+                                    <ActivityIndicator size="small" color={colors.placeholder} />
+                                ) : (
+                                    <Ionicons name="chevron-down" size={20} color={colors.placeholder} />
+                                )}
                             </TouchableOpacity>
+                            {banksError ? (
+                                <ThemedText style={[styles.errorText, { color: '#EF4444' }]}>
+                                    {banksError}
+                                </ThemedText>
+                            ) : null}
 
                             {/* Account Number */}
                             <ThemedText style={[styles.inputLabel, { color: colors.text }]}>
@@ -399,39 +428,84 @@ export function BankAccountsSection() {
                 visible={isBankPickerVisible}
                 animationType="slide"
                 transparent={true}
-                onRequestClose={() => setIsBankPickerVisible(false)}
+                onRequestClose={() => {
+                    setIsBankPickerVisible(false);
+                    setBankSearch('');
+                }}
             >
                 <View style={styles.modalOverlay}>
                     <ThemedView style={[styles.modalContent, { maxHeight: '70%' }]}>
                         <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
                             <ThemedText style={styles.modalTitle}>Select Bank</ThemedText>
-                            <TouchableOpacity onPress={() => setIsBankPickerVisible(false)}>
+                            <TouchableOpacity onPress={() => {
+                                setIsBankPickerVisible(false);
+                                setBankSearch('');
+                            }}>
                                 <Ionicons name="close" size={24} color={colors.text} />
                             </TouchableOpacity>
                         </View>
+
+                        {/* Search Input */}
+                        <View style={[styles.searchContainer, { borderBottomColor: colors.border }]}>
+                            <View style={[styles.searchInputWrapper, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
+                                <Ionicons name="search" size={18} color={colors.placeholder} />
+                                <TextInput
+                                    style={[styles.searchInput, { color: colors.text }]}
+                                    placeholder="Search bank..."
+                                    placeholderTextColor={colors.placeholder}
+                                    value={bankSearch}
+                                    onChangeText={setBankSearch}
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                />
+                                {bankSearch.length > 0 && (
+                                    <TouchableOpacity onPress={() => setBankSearch('')}>
+                                        <Ionicons name="close-circle" size={18} color={colors.placeholder} />
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        </View>
+
                         <ScrollView style={styles.bankList} showsVerticalScrollIndicator={false}>
-                            {NIGERIAN_BANKS.map((bank) => (
-                                <TouchableOpacity
-                                    key={bank.code}
-                                    style={[
-                                        styles.bankOption,
-                                        { borderBottomColor: colors.border },
-                                        selectedBank?.code === bank.code && { backgroundColor: colors.primary + '10' }
-                                    ]}
-                                    onPress={() => {
-                                        setSelectedBank(bank);
-                                        setIsBankPickerVisible(false);
-                                    }}
-                                >
-                                    <View style={[styles.bankIconSmall, { backgroundColor: colors.primary + '15' }]}>
-                                        <Ionicons name="business-outline" size={16} color={colors.primary} />
-                                    </View>
-                                    <ThemedText style={styles.bankOptionText}>{bank.name}</ThemedText>
-                                    {selectedBank?.code === bank.code && (
-                                        <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                                    )}
-                                </TouchableOpacity>
-                            ))}
+                            {loadingBanks ? (
+                                <View style={styles.bankListLoading}>
+                                    <ActivityIndicator size="large" color={colors.primary} />
+                                    <ThemedText style={[styles.loadingText, { color: colors.placeholder }]}>
+                                        Loading banks...
+                                    </ThemedText>
+                                </View>
+                            ) : filteredBanks.length > 0 ? (
+                                filteredBanks.map((bank) => (
+                                    <TouchableOpacity
+                                        key={bank.code}
+                                        style={[
+                                            styles.bankOption,
+                                            { borderBottomColor: colors.border },
+                                            selectedBank?.code === bank.code && { backgroundColor: colors.primary + '10' }
+                                        ]}
+                                        onPress={() => {
+                                            setSelectedBank(bank);
+                                            setIsBankPickerVisible(false);
+                                            setBankSearch('');
+                                        }}
+                                    >
+                                        <View style={[styles.bankIconSmall, { backgroundColor: colors.primary + '15' }]}>
+                                            <Ionicons name="business-outline" size={16} color={colors.primary} />
+                                        </View>
+                                        <ThemedText style={styles.bankOptionText}>{bank.name}</ThemedText>
+                                        {selectedBank?.code === bank.code && (
+                                            <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                                        )}
+                                    </TouchableOpacity>
+                                ))
+                            ) : (
+                                <View style={styles.emptyBankList}>
+                                    <Ionicons name="search-outline" size={40} color={colors.placeholder} />
+                                    <ThemedText style={[styles.emptyBankText, { color: colors.placeholder }]}>
+                                        {banks.length === 0 ? 'No banks available' : 'No banks found'}
+                                    </ThemedText>
+                                </View>
+                            )}
                         </ScrollView>
                     </ThemedView>
                 </View>
@@ -682,5 +756,46 @@ const styles = StyleSheet.create({
     bankOptionText: {
         flex: 1,
         fontSize: 15,
+    },
+    errorText: {
+        fontSize: 12,
+        marginTop: -8,
+        marginBottom: 8,
+    },
+    searchContainer: {
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+    },
+    searchInputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderRadius: 10,
+        borderWidth: 1,
+        gap: 8,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: 15,
+        padding: 0,
+    },
+    bankListLoading: {
+        padding: 40,
+        alignItems: 'center',
+        gap: 12,
+    },
+    loadingText: {
+        fontSize: 14,
+    },
+    emptyBankList: {
+        padding: 40,
+        alignItems: 'center',
+        gap: 12,
+    },
+    emptyBankText: {
+        fontSize: 14,
+        textAlign: 'center',
     },
 });

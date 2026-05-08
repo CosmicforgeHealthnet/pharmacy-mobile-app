@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { useProfile, useLogout, useUpdateProfile } from '@/features/authentication/hooks/useAuth';
 import { useAppTheme } from '@/core/providers/AppThemeProvider';
+import { getCurrencySymbol } from '@/shared/constants/currency';
 import type { OperatingHours } from '@/features/authentication/types';
 
 // ─── Types ───────────────────────────────────────────
@@ -125,6 +126,7 @@ export function ProfileScreen() {
     const isDark = theme === 'dark';
 
     const profile = profileData?.pharmacy;
+    const location = profileData?.location;
 
     const handleLogout = () => {
         Alert.alert(
@@ -204,6 +206,25 @@ export function ProfileScreen() {
                         <ThemedText style={[styles.registrationNumber, { color: colors.placeholder }]}>
                             {profile?.registrationNumber || 'No registration number'}
                         </ThemedText>
+                        {/* Location and Currency */}
+                        <View style={styles.profileMeta}>
+                            {location && (
+                                <View style={styles.metaItem}>
+                                    <Ionicons name="location-outline" size={12} color={colors.primary} />
+                                    <ThemedText style={[styles.metaText, { color: colors.placeholder }]}>
+                                        {location.city}, {location.country}
+                                    </ThemedText>
+                                </View>
+                            )}
+                            {profile?.defaultCurrency && (
+                                <View style={styles.metaItem}>
+                                    <Ionicons name="cash-outline" size={12} color={colors.primary} />
+                                    <ThemedText style={[styles.metaText, { color: colors.placeholder }]}>
+                                        {profile.defaultCurrency} ({getCurrencySymbol(profile.defaultCurrency)})
+                                    </ThemedText>
+                                </View>
+                            )}
+                        </View>
                     </View>
                     <TouchableOpacity
                         style={[styles.editButton, { borderColor: colors.primary }]}
@@ -239,7 +260,7 @@ export function ProfileScreen() {
                 </View>
 
                 {/* Notifications */}
-                <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                {/* <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.border }]}>
                     <SectionHeader title="Notifications" />
                     <ToggleItem
                         icon="notifications-outline"
@@ -255,19 +276,7 @@ export function ProfileScreen() {
                         onPress={() => router.push('/profile/notifications')}
                         colors={colors}
                     />
-                </View>
-
-                {/* Preferences */}
-                <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                    <SectionHeader title="Preferences" />
-                    <ToggleItem
-                        icon="moon-outline"
-                        label="Dark Mode"
-                        value={isDark}
-                        onToggle={toggleTheme}
-                        colors={colors}
-                    />
-                </View>
+                </View> */}
 
                 {/* Account */}
                 <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.border }]}>
@@ -282,6 +291,35 @@ export function ProfileScreen() {
                         icon="people-outline"
                         label="Staff Management"
                         onPress={() => router.push('/profile/staff')}
+                        colors={colors}
+                    />
+                </View>
+
+                {/* Wallet & Payments */}
+                <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                    <SectionHeader title="Wallet & Payments" />
+                    <MenuItem
+                        icon="wallet-outline"
+                        label="Wallet"
+                        onPress={() => router.push('/wallet')}
+                        colors={colors}
+                    />
+                    <MenuItem
+                        icon="card-outline"
+                        label="Bank Accounts"
+                        onPress={() => router.push('/profile/bank-accounts')}
+                        colors={colors}
+                    />
+                </View>
+
+                {/* Preferences */}
+                <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                    <SectionHeader title="Preferences" />
+                    <ToggleItem
+                        icon="moon-outline"
+                        label="Dark Mode"
+                        value={isDark}
+                        onToggle={toggleTheme}
                         colors={colors}
                     />
                 </View>
@@ -381,6 +419,20 @@ const styles = StyleSheet.create({
     registrationNumber: {
         fontSize: 13,
         marginTop: 2,
+    },
+    profileMeta: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+        marginTop: 6,
+    },
+    metaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    metaText: {
+        fontSize: 11,
     },
     editButton: {
         width: 36,

@@ -64,6 +64,9 @@ export function WalletScreen() {
     const [isBalanceVisible, setIsBalanceVisible] = useState(true);
     const [selectedBankAccountId, setSelectedBankAccountId] = useState<string | null>(null);
     const [isBankSelectVisible, setIsBankSelectVisible] = useState(false);
+    const [withdrawError, setWithdrawError] = useState('');
+
+    const MIN_PAYOUT = 6786.25;
 
     const { data: walletSummary, refetch: refetchSummary, isLoading: isLoadingSummary } = useWalletSummary();
     const { data: payoutsData, refetch: refetchPayouts, isLoading: isLoadingPayouts } = useWalletPayouts();
@@ -110,9 +113,24 @@ export function WalletScreen() {
 
     const handleWithdraw = async () => {
         const amount = parseFloat(withdrawAmount.replace(/,/g, ''));
-        if (!amount || isNaN(amount) || amount < 1000) return;
-        if (amount > walletBalance) return;
-        if (!selectedBankAccount) return;
+        setWithdrawError('');
+
+        if (!amount || isNaN(amount)) {
+            setWithdrawError('Please enter a valid amount.');
+            return;
+        }
+        if (amount < MIN_PAYOUT) {
+            setWithdrawError(`Minimum payout amount is ${formatCurrency(MIN_PAYOUT)}.`);
+            return;
+        }
+        if (amount > walletBalance) {
+            setWithdrawError('Amount exceeds available balance.');
+            return;
+        }
+        if (!selectedBankAccount) {
+            setWithdrawError('Please select a bank account.');
+            return;
+        }
 
         try {
             await requestPayout({
@@ -123,8 +141,10 @@ export function WalletScreen() {
             setIsWithdrawModalVisible(false);
             setWithdrawAmount('');
             setSelectedBankAccountId(null);
-        } catch (error) {
-            console.error('Withdrawal failed', error);
+            setWithdrawError('');
+        } catch (error: any) {
+            const message = error?.response?.data?.message || error?.message || 'Failed to request payout.';
+            setWithdrawError(message);
         }
     };
 
@@ -171,7 +191,10 @@ export function WalletScreen() {
                     <Ionicons name="chevron-back" size={28} color={colors.primary} />
                 </TouchableOpacity>
                 <ThemedText style={styles.headerTitle}>Wallet</ThemedText>
-                <TouchableOpacity style={styles.settingsButton}>
+                <TouchableOpacity
+                    style={styles.settingsButton}
+                    onPress={() => router.push('/profile')}
+                >
                     <Ionicons name="settings-outline" size={24} color={colors.text} />
                 </TouchableOpacity>
             </View>
@@ -369,7 +392,7 @@ export function WalletScreen() {
 
                             <ThemedText style={[styles.quickAmountsLabel, { color: colors.placeholder, marginTop: 16 }]}>Quick Amounts</ThemedText>
                             <View style={styles.quickAmountsGrid}>
-                                {[5000, 10000, 20000, 50000].map((amt) => (
+                                {[10000, 20000, 50000, 100000].map((amt) => (
                                     <TouchableOpacity
                                         key={amt}
                                         style={[
@@ -409,8 +432,13 @@ export function WalletScreen() {
                                 keyboardType="numeric"
                             />
                             <ThemedText style={[styles.inputHint, { color: colors.placeholder }]}>
-                                Minimum withdrawal: ₦1,000. Processing time: 1-3 business days.
+                                Minimum withdrawal: {formatCurrency(MIN_PAYOUT)}. Processing time: 1-3 business days.
                             </ThemedText>
+
+                            {/* Error Message */}
+                            {withdrawError ? (
+                                <ThemedText style={styles.errorText}>{withdrawError}</ThemedText>
+                            ) : null}
                         </ScrollView>
 
                         <View style={[styles.modalFooter, { borderTopColor: colors.border }]}>
@@ -420,6 +448,7 @@ export function WalletScreen() {
                                     setIsWithdrawModalVisible(false);
                                     setWithdrawAmount('');
                                     setSelectedBankAccountId(null);
+                                    setWithdrawError('');
                                 }}
                             >
                                 <ThemedText style={[styles.cancelButtonText, { color: colors.text }]}>Cancel</ThemedText>
@@ -429,13 +458,13 @@ export function WalletScreen() {
                                     styles.proceedButton,
                                     {
                                         backgroundColor:
-                                            withdrawAmount && parseFloat(withdrawAmount) >= 1000 && selectedBankAccount && !isRequestingPayout
+                                            withdrawAmount && parseFloat(withdrawAmount) >= MIN_PAYOUT && selectedBankAccount && !isRequestingPayout
                                                 ? colors.primary
                                                 : colors.inputBackground,
                                     },
                                 ]}
                                 onPress={handleWithdraw}
-                                disabled={!withdrawAmount || parseFloat(withdrawAmount) < 1000 || !selectedBankAccount || isRequestingPayout}
+                                disabled={!withdrawAmount || parseFloat(withdrawAmount) < MIN_PAYOUT || !selectedBankAccount || isRequestingPayout}
                             >
                                 <ThemedText style={styles.proceedButtonText}>
                                     {isRequestingPayout ? 'Processing...' : 'Request Payout'}
@@ -734,6 +763,11 @@ const styles = StyleSheet.create({
     inputHint: {
         fontSize: 12,
         marginTop: 6,
+    },
+    errorText: {
+        color: '#EF4444',
+        fontSize: 14,
+        marginTop: 12,
     },
     modalFooter: {
         flexDirection: 'row',

@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useInvoiceById, useSendInvoice, useMarkInvoicePaid, useCancelInvoice } from '../hooks';
 import type { Invoice, InvoiceStatus } from '../types';
-import { formatCurrency, formatInvoiceStatus, getInvoiceStatusColor } from '../types';
+import { formatCurrency, formatInvoiceStatus, getInvoiceStatusColor, getInvoiceRef } from '../types';
 
 export function InvoiceDetailScreen() {
     const router = useRouter();
@@ -150,7 +150,7 @@ export function InvoiceDetailScreen() {
                         <View style={styles.invoiceHeaderInfo}>
                             <View style={styles.titleRow}>
                                 <ThemedText style={styles.invoiceTitle}>
-                                    Invoice {invoice.invoiceRef}
+                                    Invoice {getInvoiceRef(invoice)}
                                 </ThemedText>
                                 <View
                                     style={[
@@ -172,7 +172,7 @@ export function InvoiceDetailScreen() {
                             <ThemedText style={[styles.patientName, { color: colors.placeholder }]}>
                                 Patient:{' '}
                                 <ThemedText style={[styles.patientNameValue, { color: colors.text }]}>
-                                    {invoice.patientName}
+                                    {invoice.patientName || invoice.patientEmail || 'Unknown'}
                                 </ThemedText>
                             </ThemedText>
                             <ThemedText style={[styles.dateText, { color: colors.placeholder }]}>

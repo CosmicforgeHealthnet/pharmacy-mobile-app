@@ -204,10 +204,21 @@ class AuthService {
         const response = await apiClient.get<PharmacyPricingResponse | any>(
             AUTH_URLS.PRICING
         );
-        // Handle different response formats
-        if (response?.pricing) return response;
-        if (Array.isArray(response)) return { pricing: response };
-        if (response?.data?.pricing) return { pricing: response.data.pricing };
+        // Handle different response formats from API
+        // API may return: { pricing: [...] }, [...], { data: { pricing: [...] } }, or { data: [...] }
+        if (response?.pricing && Array.isArray(response.pricing)) {
+            return response;
+        }
+        if (Array.isArray(response)) {
+            return { pricing: response };
+        }
+        if (response?.data?.pricing && Array.isArray(response.data.pricing)) {
+            return { pricing: response.data.pricing };
+        }
+        if (Array.isArray(response?.data)) {
+            return { pricing: response.data };
+        }
+        // Return empty array if no valid format found
         return { pricing: [] };
     }
 

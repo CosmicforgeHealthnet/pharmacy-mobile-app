@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
+    Image,
     Linking,
     ScrollView,
     StyleSheet,
@@ -54,11 +55,31 @@ export function SupportScreen() {
     };
 
     const handleOpenPhone = () => {
-        Linking.openURL('tel:+2341234567890');
+        Linking.openURL('tel:+2347031455395');
     };
 
     const handleOpenWhatsApp = () => {
-        Linking.openURL('https://wa.me/2341234567890?text=Hello%2C%20I%20need%20support%20with%20my%20pharmacy%20app');
+        Linking.openURL('https://wa.link/6ser4t');
+    };
+
+    const handleOpenInstagram = () => {
+        Linking.openURL('https://www.instagram.com/cf_healthnet');
+    };
+
+    const handleOpenTikTok = () => {
+        Linking.openURL('https://www.tiktok.com/@cf_healthnet1');
+    };
+
+    const handleOpenTwitter = () => {
+        Linking.openURL('https://x.com/cf_healthnet');
+    };
+
+    const handleOpenLinkedIn = () => {
+        Linking.openURL('https://www.linkedin.com/company/cosmicforge-healthnet-limited/');
+    };
+
+    const handleOpenFacebook = () => {
+        Linking.openURL('https://facebook.com/profile.php?id=61565802410939');
     };
 
     const handleOpenFAQ = () => {
@@ -66,11 +87,11 @@ export function SupportScreen() {
     };
 
     const handleOpenTerms = () => {
-        Linking.openURL('https://cosmicforge.com/terms');
+        Linking.openURL('https://www.cosmicforge-healthnet.com/terms');
     };
 
     const handleOpenPrivacy = () => {
-        Linking.openURL('https://cosmicforge.com/privacy');
+        Linking.openURL('https://www.cosmicforge-healthnet.com/privacy-policy');
     };
 
     return (
@@ -109,7 +130,7 @@ export function SupportScreen() {
                     <SupportItem
                         icon="call-outline"
                         title="Phone Support"
-                        description="Call us for immediate assistance"
+                        description="+234 703 145 5395"
                         onPress={handleOpenPhone}
                         colors={colors}
                         iconBgColor="#ECFDF5"
@@ -125,6 +146,76 @@ export function SupportScreen() {
                         iconBgColor="#DCFCE7"
                         iconColor="#16A34A"
                     />
+                </View>
+
+                {/* Social Media Section */}
+                <View style={styles.section}>
+                    <ThemedText style={styles.sectionTitle}>Follow Us</ThemedText>
+                    <ThemedText style={[styles.sectionDescription, { color: colors.placeholder }]}>
+                        Connect with us on social media.
+                    </ThemedText>
+
+                    <View style={styles.socialGrid}>
+                        <TouchableOpacity
+                            style={[styles.socialItem, { backgroundColor: colors.background, borderColor: colors.border }]}
+                            onPress={handleOpenInstagram}
+                        >
+                            <View style={[styles.socialIcon, { backgroundColor: '#FDF2F4' }]}>
+                                <Ionicons name="logo-instagram" size={20} color="#E4405F" />
+                            </View>
+                            <ThemedText style={styles.socialLabel}>Instagram</ThemedText>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.socialItem, { backgroundColor: colors.background, borderColor: colors.border }]}
+                            onPress={handleOpenTikTok}
+                        >
+                            <View style={[styles.socialIcon, { backgroundColor: '#F5F5F5' }]}>
+                                <Ionicons name="logo-tiktok" size={20} color="#000000" />
+                            </View>
+                            <ThemedText style={styles.socialLabel}>TikTok</ThemedText>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.socialItem, { backgroundColor: colors.background, borderColor: colors.border }]}
+                            onPress={handleOpenTwitter}
+                        >
+                            <View style={[styles.socialIcon, { backgroundColor: '#F5F5F5' }]}>
+                                <Ionicons name="logo-twitter" size={20} color="#000000" />
+                            </View>
+                            <ThemedText style={styles.socialLabel}>X (Twitter)</ThemedText>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.socialItem, { backgroundColor: colors.background, borderColor: colors.border }]}
+                            onPress={handleOpenLinkedIn}
+                        >
+                            <View style={[styles.socialIcon, { backgroundColor: '#EFF6FF' }]}>
+                                <Ionicons name="logo-linkedin" size={20} color="#0A66C2" />
+                            </View>
+                            <ThemedText style={styles.socialLabel}>LinkedIn</ThemedText>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.socialItem, { backgroundColor: colors.background, borderColor: colors.border }]}
+                            onPress={handleOpenFacebook}
+                        >
+                            <View style={[styles.socialIcon, { backgroundColor: '#EFF6FF' }]}>
+                                <Ionicons name="logo-facebook" size={20} color="#1877F2" />
+                            </View>
+                            <ThemedText style={styles.socialLabel}>Facebook</ThemedText>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.socialItem, { backgroundColor: colors.background, borderColor: colors.border }]}
+                            onPress={handleOpenWhatsApp}
+                        >
+                            <View style={[styles.socialIcon, { backgroundColor: '#ECFDF5' }]}>
+                                <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
+                            </View>
+                            <ThemedText style={styles.socialLabel}>WhatsApp</ThemedText>
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 {/* Resources Section */}
@@ -178,15 +269,17 @@ export function SupportScreen() {
 
                 {/* App Info */}
                 <View style={styles.appInfo}>
-                    <View style={[styles.appIcon, { backgroundColor: colors.primary }]}>
-                        <Ionicons name="medical" size={32} color="#FFFFFF" />
-                    </View>
+                    <Image
+                        source={require('../../../../assets/images/cosmic-log.png')}
+                        style={styles.appLogo}
+                        resizeMode="contain"
+                    />
                     <ThemedText style={styles.appName}>CosmicForge Pharmacy</ThemedText>
                     <ThemedText style={[styles.appVersion, { color: colors.placeholder }]}>
                         Version 1.0.0
                     </ThemedText>
                     <ThemedText style={[styles.copyright, { color: colors.placeholder }]}>
-                        © 2026 CosmicForge. All rights reserved.
+                        © 2026 CosmicForge HealthNet. All rights reserved.
                     </ThemedText>
                 </View>
             </ScrollView>
@@ -265,10 +358,40 @@ const styles = StyleSheet.create({
         fontSize: 13,
         marginTop: 2,
     },
+    socialGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+    },
+    socialItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderRadius: 10,
+        borderWidth: 1,
+        gap: 8,
+    },
+    socialIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    socialLabel: {
+        fontSize: 13,
+        fontWeight: '500',
+    },
     appInfo: {
         alignItems: 'center',
         paddingVertical: 32,
         paddingHorizontal: 16,
+    },
+    appLogo: {
+        width: 80,
+        height: 80,
+        marginBottom: 12,
     },
     appIcon: {
         width: 64,

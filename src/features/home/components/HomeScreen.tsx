@@ -22,6 +22,7 @@ import { useHomeData } from '../hooks';
 import { storage } from '@/core/storage';
 import { useWalletSummary } from '@/features/wallet/hooks/useWallet';
 import { NotificationBell } from '@/features/notifications/components';
+import { PharmacyAlerts } from './PharmacyAlerts';
 import type { Prescription, ActiveOrder, DashboardActivityItem, PrescriptionStatus } from '../types';
 
 // ─── Types ───────────────────────────────────────────
@@ -68,13 +69,15 @@ function Header({
     isSearchOpen,
     searchValue,
     onSearchToggle,
-    onSearchChange
+    onSearchChange,
+    onSupportPress
 }: {
     colors: typeof Colors.light;
     isSearchOpen: boolean;
     searchValue: string;
     onSearchToggle: () => void;
     onSearchChange: (text: string) => void;
+    onSupportPress: () => void;
 }) {
     const inputRef = React.useRef<TextInput>(null);
 
@@ -131,7 +134,10 @@ function Header({
                             <Ionicons name="search-outline" size={22} color={colors.text} />
                         </TouchableOpacity>
                         <NotificationBell colors={colors} />
-                        <TouchableOpacity style={[styles.iconButton, { backgroundColor: colors.inputBackground }]}>
+                        <TouchableOpacity
+                            style={[styles.iconButton, { backgroundColor: colors.inputBackground }]}
+                            onPress={onSupportPress}
+                        >
                             <Ionicons name="headset-outline" size={22} color={colors.text} />
                         </TouchableOpacity>
                     </View>
@@ -782,6 +788,7 @@ export function HomeScreen() {
                 searchValue={searchValue}
                 onSearchToggle={handleSearchToggle}
                 onSearchChange={setSearchValue}
+                onSupportPress={() => router.push('/profile/support')}
             />
 
             <ScrollView
@@ -805,6 +812,9 @@ export function HomeScreen() {
                         Let&apos;s handle your prescription
                     </ThemedText>
                 </View>
+
+                {/* Pharmacy Alerts */}
+                <PharmacyAlerts />
 
                 {/* Wallet Balance Card */}
                 <View style={styles.walletSection}>

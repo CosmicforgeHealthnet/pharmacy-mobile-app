@@ -109,14 +109,26 @@ export interface PharmacyRegisterResponse {
     user: PharmacyUser;
 }
 
+export interface LocationInfo {
+    country: string;
+    city: string;
+    region: string;
+    timezone: string;
+    ip: string;
+}
+
 export interface PharmacyLoginResponse {
     accessToken: string;
     refreshToken: string;
     pharmacy: Pharmacy;
+    user?: PharmacyUser;
+    location?: LocationInfo;
 }
 
 export interface PharmacyProfileResponse {
     pharmacy: Pharmacy;
+    user?: PharmacyUser;
+    location?: LocationInfo;
 }
 
 export interface VerifyEmailResponse {

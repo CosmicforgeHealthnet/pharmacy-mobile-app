@@ -16,6 +16,7 @@ export interface InvoiceLineItem {
 export interface Invoice {
     id: string;
     invoiceRef: string;
+    reference?: string; // API may return this instead of invoiceRef
     prescriptionId: string;
     prescriptionRef: string;
     pharmacyId: string;
@@ -33,6 +34,11 @@ export interface Invoice {
     notes?: string;
     createdAt: string;
     updatedAt: string;
+}
+
+// Helper to get invoice reference (handles both field names)
+export function getInvoiceRef(invoice: Invoice): string {
+    return invoice.invoiceRef || invoice.reference || '';
 }
 
 export interface InvoiceListResponse {

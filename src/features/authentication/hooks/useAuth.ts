@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authService } from '../services';
+import { getCurrencyForCountry } from '@/shared/constants/currency';
+import { clearDismissedAlerts } from '@/features/home/components';
 import type {
     PharmacyLoginRequest,
     PharmacyRegisterRequest,
@@ -8,6 +10,7 @@ import type {
     ChangePasswordRequest,
     AddStaffRequest,
     SetPricingPayload,
+    PricingItem,
 } from '../types';
 
 export const AUTH_KEYS = {
@@ -21,9 +24,27 @@ export function useLogin() {
 
     return useMutation({
         mutationFn: (data: PharmacyLoginRequest) => authService.login(data),
-        onSuccess: (data) => {
-            // Option to pre-populate or invalidate queries on login
-            queryClient.setQueryData(AUTH_KEYS.profile, data.pharmacy);
+        onSuccess: async (data) => {
+            // Clear any previously dismissed alerts on new login
+            await clearDismissedAlerts();
+
+            // Pre-populate profile query with pharmacy data
+            queryClient.setQueryData(AUTH_KEYS.profile, { pharmacy: data.pharmacy });
+
+            // Update default currency based on location if available
+            if (data.location?.country) {
+                const currencyForLocation = getCurrencyForCountry(data.location.country);
+                // Only update if currency is different or not set
+                if (!data.pharmacy?.defaultCurrency || data.pharmacy.defaultCurrency !== currencyForLocation) {
+                    try {
+                        await authService.updateProfile({ defaultCurrency: currencyForLocation });
+                        // Invalidate profile to refetch with new currency
+                        queryClient.invalidateQueries({ queryKey: AUTH_KEYS.profile });
+                    } catch (error) {
+                        console.error('Failed to update default currency:', error);
+                    }
+                }
+            }
         },
     });
 }
@@ -136,7 +157,14 @@ export function usePricing() {
         queryKey: AUTH_KEYS.pricing,
         queryFn: () => authService.getPricing(),
         staleTime: 5 * 60 * 1000,
-        select: (data) => data.pricing,
+        select: (data): PricingItem[] => {
+            // Handle different response formats from API
+            if (Array.isArray(data)) return data;
+            if (data?.pricing) return data.pricing;
+            if (data?.data?.pricing) return data.data.pricing;
+            if (Array.isArray(data?.data)) return data.data;
+            return [];
+        },
     });
 }
 

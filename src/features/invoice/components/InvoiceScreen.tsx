@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useInvoices } from '../hooks';
 import type { Invoice, InvoiceStatus } from '../types';
-import { getInvoiceStatusColor, formatInvoiceStatus, formatCurrency, formatInvoiceDate } from '../types';
+import { getInvoiceStatusColor, formatInvoiceStatus, formatCurrency, formatInvoiceDate, getInvoiceRef } from '../types';
 import { InvoiceCard } from './InvoiceCard';
 
 // ─── Filter Chip ─────────────────────────────────────
@@ -127,9 +127,10 @@ export function InvoiceScreen() {
         const query = searchQuery.toLowerCase();
         return invoices.filter(
             (invoice) =>
-                invoice.invoiceRef.toLowerCase().includes(query) ||
-                invoice.prescriptionRef.toLowerCase().includes(query) ||
-                invoice.patientName.toLowerCase().includes(query)
+                getInvoiceRef(invoice).toLowerCase().includes(query) ||
+                (invoice.prescriptionRef || '').toLowerCase().includes(query) ||
+                (invoice.patientName || '').toLowerCase().includes(query) ||
+                (invoice.patientEmail || '').toLowerCase().includes(query)
         );
     }, [invoices, searchQuery]);
 
