@@ -7,6 +7,7 @@
 import { io, Socket } from "socket.io-client";
 import Constants from "expo-constants";
 import { storage } from "../storage";
+import { sessionEvents } from "../auth/sessionEvents";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,29 +59,31 @@ class SocketCoreService {
          throw new Error("Authentication required for WebSocket connection");
       }
 
-      // Socket URL from app config (app.config.ts extra.socketUrl)
+      // Socket URL from app config (app.json extra.socketUrl)
+      // Falls back to deriving from apiUrl or using production URL
       const socketUrl =
          Constants.expoConfig?.extra?.socketUrl ||
+         Constants.expoConfig?.extra?.apiUrl?.replace("/api", "") ||
          "https://api.cosmicforge-healthnet.com";
 
       this.connectionState = ConnectionState.CONNECTING;
 
+      console.log("🔌 [Socket] Connecting to:", socketUrl);
+
       this.socket = io(socketUrl, {
-         transports: ["websocket", "polling"],
+         // path: "/socket.io", // Uncomment and change if server uses custom path
+         transports: ["polling", "websocket"], // Try polling first, more reliable on mobile
          timeout: 20000,
          autoConnect: true,
          reconnection: true,
-         reconnectionAttempts: 5,
-         reconnectionDelay: 1000,
+         reconnectionAttempts: 3,
+         reconnectionDelay: 2000,
+         forceNew: true,
          auth: {
             token,
             authorization: `Bearer ${token}`,
          },
          query: { token },
-         extraHeaders: {
-            Authorization: `Bearer ${token}`,
-            "X-Auth-Token": token,
-         },
       });
 
       return new Promise((resolve, reject) => {
@@ -106,22 +109,45 @@ class SocketCoreService {
             resolve(this.socket!);
          });
 
-         this.socket!.on("disconnect", (reason) => {
+         this.socket!.on("disconnect", (reason: string) => {
             this.connectionState = ConnectionState.DISCONNECTED;
             this.connectionPromise = null;
             console.log(`🔌 [Socket] Disconnected: ${reason}`);
          });
 
-         this.socket!.on("reconnecting", () => {
+         this.socket!.on("reconnect_attempt", (attemptNumber: number) => {
             this.connectionState = ConnectionState.RECONNECTING;
-            console.log("🔄 [Socket] Reconnecting...");
+            console.log(`🔄 [Socket] Reconnecting... (attempt ${attemptNumber})`);
          });
 
-         this.socket!.on("connect_error", (error) => {
+         this.socket!.on("connect_error", async (error: Error) => {
             clearTimeout(connectionTimeout);
             this.connectionState = ConnectionState.ERROR;
             this.connectionPromise = null;
             console.error("❌ [Socket] Connection error:", error.message);
+
+            // Check for authentication-related errors
+            const authErrors = [
+               "user not found",
+               "invalid token",
+               "token expired",
+               "unauthorized",
+               "authentication failed",
+               "not authenticated",
+            ];
+            const isAuthError = authErrors.some(msg =>
+               error.message.toLowerCase().includes(msg)
+            );
+
+            if (isAuthError) {
+               // Stop reconnection attempts for auth errors
+               this.socket?.disconnect();
+               this.socket = null;
+               // Clear auth and redirect to login
+               await storage.clearAuth();
+               sessionEvents.emitUnauthorized();
+            }
+
             reject(error);
          });
       });

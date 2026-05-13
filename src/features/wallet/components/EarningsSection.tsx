@@ -1,4 +1,5 @@
 import { ThemedText } from '@/shared/components/themed-text';
+import { formatCurrency } from '@/shared/constants/currency';
 import { Colors } from '@/shared/constants/theme';
 import { useColorScheme } from '@/shared/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -84,8 +85,11 @@ export function EarningsSection() {
     const { data: earnings, isLoading } = useWalletEarnings({ period });
     const { data: txData } = useWalletTransactions();
 
-    const formatCurrency = (amount: number) =>
-        `₦${(amount || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    // Get currency from earnings data
+    const currency = earnings?.currency || 'NGN';
+
+    // Helper to format with the earnings currency
+    const format = (amount: number) => formatCurrency(amount, currency);
 
     // Delta between two periods
     const pct = (a: number, b: number) => (b === 0 ? null : ((a - b) / b) * 100);
@@ -109,20 +113,20 @@ export function EarningsSection() {
             <View style={styles.statsGrid}>
                 <StatCard
                     label="This Month"
-                    value={isLoading ? '...' : formatCurrency(earnings?.currentMonth ?? 0)}
+                    value={isLoading ? '...' : format(earnings?.currentMonth ?? 0)}
                     delta={change}
                 />
                 <StatCard
                     label="Last Month"
-                    value={isLoading ? '...' : formatCurrency(earnings?.lastMonth ?? 0)}
+                    value={isLoading ? '...' : format(earnings?.lastMonth ?? 0)}
                 />
                 <StatCard
                     label="Last 3 Months"
-                    value={isLoading ? '...' : formatCurrency(earnings?.last3Months ?? 0)}
+                    value={isLoading ? '...' : format(earnings?.last3Months ?? 0)}
                 />
                 <StatCard
                     label="All Time"
-                    value={isLoading ? '...' : formatCurrency(earnings?.allTime ?? 0)}
+                    value={isLoading ? '...' : format(earnings?.allTime ?? 0)}
                 />
             </View>
 
@@ -169,8 +173,8 @@ export function EarningsSection() {
                         <BreakdownRow
                             key={row.period ?? i}
                             label={row.label ?? row.period}
-                            subLabel={`${row.invoiceCount ?? 0} invoices · avg ${formatCurrency(row.averageAmount ?? 0)}`}
-                            totalAmount={formatCurrency(row.totalAmount ?? 0)}
+                            subLabel={`${row.invoiceCount ?? 0} invoices · avg ${format(row.averageAmount ?? 0)}`}
+                            totalAmount={format(row.totalAmount ?? 0)}
                             delta={delta}
                             barPercent={barPercent}
                             primary={colors.primary}
@@ -236,7 +240,7 @@ export function EarningsSection() {
                                     </View>
                                     <View style={styles.creditRight}>
                                         <ThemedText style={styles.creditAmount}>
-                                            +{formatCurrency(t.amount)}
+                                            +{formatCurrency(t.amount, t.currency)}
                                         </ThemedText>
                                         <View style={[styles.statusBadge, { backgroundColor: `${statusColor}15` }]}>
                                             <ThemedText style={[styles.statusText, { color: statusColor }]}>

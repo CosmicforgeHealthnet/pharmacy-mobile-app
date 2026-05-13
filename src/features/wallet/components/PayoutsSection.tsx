@@ -1,4 +1,5 @@
 import { ThemedText } from '@/shared/components/themed-text';
+import { formatCurrency } from '@/shared/constants/currency';
 import { Colors } from '@/shared/constants/theme';
 import { useColorScheme } from '@/shared/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,11 +7,6 @@ import React from 'react';
 import { ActivityIndicator, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useWalletPayouts } from '../hooks/useWallet';
 import type { Payout } from '../types';
-
-// ─── Helpers ─────────────────────────────────────────────
-function formatCurrency(amount: number) {
-    return `₦${(amount || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 function getStatusColor(status: Payout['status']) {
     switch (status) {
@@ -49,7 +45,7 @@ function PayoutItem({ payout, colors }: { payout: Payout; colors: any }) {
             </View>
             <View style={styles.payoutAmountContainer}>
                 <ThemedText style={styles.payoutAmount}>
-                    -{formatCurrency(payout.amount)}
+                    -{formatCurrency(payout.amount, payout.currency)}
                 </ThemedText>
                 <View style={[styles.payoutStatusBadge, { backgroundColor: `${getStatusColor(payout.status)}15` }]}>
                     <ThemedText style={[styles.payoutStatusText, { color: getStatusColor(payout.status) }]}>

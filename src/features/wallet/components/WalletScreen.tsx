@@ -437,7 +437,10 @@ export function WalletScreen() {
 
                             {/* Error Message */}
                             {withdrawError ? (
-                                <ThemedText style={styles.errorText}>{withdrawError}</ThemedText>
+                                <View style={styles.errorContainer}>
+                                    <Ionicons name="alert-circle" size={18} color="#EF4444" />
+                                    <ThemedText style={styles.errorText}>{withdrawError}</ThemedText>
+                                </View>
                             ) : null}
                         </ScrollView>
 
@@ -764,10 +767,22 @@ const styles = StyleSheet.create({
         fontSize: 12,
         marginTop: 6,
     },
+    errorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FEF2F2',
+        borderWidth: 1,
+        borderColor: '#FECACA',
+        borderRadius: 10,
+        padding: 12,
+        marginTop: 16,
+        gap: 10,
+    },
     errorText: {
-        color: '#EF4444',
+        color: '#DC2626',
         fontSize: 14,
-        marginTop: 12,
+        fontWeight: '500',
+        flex: 1,
     },
     modalFooter: {
         flexDirection: 'row',

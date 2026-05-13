@@ -12,13 +12,31 @@ export interface PharmacyContact {
     isOnline?: boolean;
 }
 
-// Chat message from prescription.chatMessages
+// Chat message from prescription.chatMessages (API response) or socket events
 export interface ChatMessage {
     id: string;
     senderType: 'pharmacy' | 'patient';
     senderId: string;
     message: string;
     createdAt: string;
+    // Optional fields from socket events
+    prescriptionId?: string;
+    roomId?: string;
+    updatedAt?: string;
+    isRead?: boolean;
+}
+
+// Message format for MessageBubble component (transformed from ChatMessage)
+export interface MessageBubbleMessage {
+    id: string;
+    roomId: string;
+    senderId: string;
+    senderName: string;
+    content: string;
+    timestamp: string;
+    isRead?: boolean;
+    isEdited?: boolean;
+    deletedAt?: string;
 }
 
 // Send message payload
@@ -27,10 +45,10 @@ export interface SendMessagePayload {
     senderType: 'pharmacy' | 'patient';
 }
 
-// Typing indicator for real-time
-export interface TypingIndicator {
+// Typing indicator data for real-time socket events
+export interface TypingIndicatorData {
     roomId: string;
-    odUserId: string;
+    userId: string;
     userName: string;
     isTyping: boolean;
 }

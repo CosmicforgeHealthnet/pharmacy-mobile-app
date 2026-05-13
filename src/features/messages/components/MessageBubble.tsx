@@ -4,10 +4,10 @@ import { useColorScheme } from '@/shared/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { ChatMessage } from '../types';
+import type { MessageBubbleMessage } from '../types';
 
 interface MessageBubbleProps {
-    message: ChatMessage;
+    message: MessageBubbleMessage;
     isOwnMessage: boolean;
 }
 

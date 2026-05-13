@@ -54,14 +54,14 @@ function BankAccountItem({
                 </View>
                 <View style={styles.accountDetails}>
                     <View style={styles.accountNameRow}>
-                        <ThemedText style={styles.bankName}>{account.bankName}</ThemedText>
+                        <ThemedText style={styles.bankName} numberOfLines={1}>{account.bankName}</ThemedText>
                         {account.isDefault && (
                             <View style={[styles.defaultBadge, { backgroundColor: '#10B98115' }]}>
                                 <ThemedText style={styles.defaultBadgeText}>Default</ThemedText>
                             </View>
                         )}
                     </View>
-                    <ThemedText style={[styles.accountNumber, { color: colors.placeholder }]}>
+                    <ThemedText style={[styles.accountNumber, { color: colors.placeholder }]} numberOfLines={1}>
                         {maskedNumber} • {account.accountName}
                     </ThemedText>
                 </View>
@@ -569,6 +569,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         flex: 1,
+        minWidth: 0,
     },
     bankIconContainer: {
         width: 44,
@@ -577,9 +578,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 12,
+        flexShrink: 0,
     },
     accountDetails: {
         flex: 1,
+        minWidth: 0,
     },
     accountNameRow: {
         flexDirection: 'row',
@@ -590,11 +593,13 @@ const styles = StyleSheet.create({
     bankName: {
         fontSize: 15,
         fontWeight: '600',
+        flexShrink: 1,
     },
     defaultBadge: {
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 10,
+        flexShrink: 0,
     },
     defaultBadgeText: {
         color: '#10B981',
@@ -607,6 +612,8 @@ const styles = StyleSheet.create({
     accountActions: {
         flexDirection: 'row',
         gap: 8,
+        flexShrink: 0,
+        marginLeft: 12,
     },
     actionButton: {
         width: 36,

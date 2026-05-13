@@ -1,5 +1,6 @@
 import { ThemedText } from '@/shared/components/themed-text';
 import { ThemedView } from '@/shared/components/themed-view';
+import { formatCurrency } from '@/shared/constants/currency';
 import { Colors } from '@/shared/constants/theme';
 import { useColorScheme } from '@/shared/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,8 +15,8 @@ import {
     View,
 } from 'react-native';
 import { useInvoiceById, useSendInvoice, useMarkInvoicePaid, useCancelInvoice } from '../hooks';
-import type { Invoice, InvoiceStatus } from '../types';
-import { formatCurrency, formatInvoiceStatus, getInvoiceStatusColor, getInvoiceRef } from '../types';
+import type {  InvoiceStatus } from '../types';
+import { formatInvoiceStatus, getInvoiceStatusColor, getInvoiceRef } from '../types';
 
 export function InvoiceDetailScreen() {
     const router = useRouter();
@@ -121,7 +122,9 @@ export function InvoiceDetailScreen() {
     const statusColors = getInvoiceStatusColor(invoice.status);
     const isPending = invoice.status === 'awaiting_payment' || invoice.status === 'overdue';
     const canSend = invoice.status === 'draft';
-    const canMarkPaid = invoice.status === 'sent' || invoice.status === 'awaiting_payment';
+    // Only allow manual Mark as Paid for pay_on_pickup invoices (online payments are handled automatically)
+    const canMarkPaid = invoice.paymentMethod === 'pay_on_pickup' &&
+        (invoice.status === 'sent' || invoice.status === 'awaiting_payment');
     const canCancel = invoice.status !== 'paid' && invoice.status !== 'cancelled';
 
     const prescriptionSteps = [
@@ -234,10 +237,10 @@ export function InvoiceDetailScreen() {
                                 </View>
                                 <View style={styles.medicationPricing}>
                                     <ThemedText style={[styles.medicationQuantity, { color: colors.text }]}>
-                                        {item.quantity} × {formatCurrency(item.unitPrice)}
+                                        {item.quantity} × {formatCurrency(item.unitPrice, invoice.currency)}
                                     </ThemedText>
                                     <ThemedText style={styles.medicationSubtotal}>
-                                        {formatCurrency(item.subtotal)}
+                                        {formatCurrency(item.subtotal, invoice.currency)}
                                     </ThemedText>
                                 </View>
                             </View>
@@ -253,7 +256,7 @@ export function InvoiceDetailScreen() {
                                 Subtotal
                             </ThemedText>
                             <ThemedText style={[styles.totalValue, { color: colors.text }]}>
-                                {formatCurrency(invoice.subtotal)}
+                                {formatCurrency(invoice.subtotal, invoice.currency)}
                             </ThemedText>
                         </View>
                         <View style={styles.totalRow}>
@@ -261,13 +264,13 @@ export function InvoiceDetailScreen() {
                                 Delivery fee
                             </ThemedText>
                             <ThemedText style={[styles.totalValue, { color: colors.text }]}>
-                                {formatCurrency(invoice.deliveryFee)}
+                                {formatCurrency(invoice.deliveryFee, invoice.currency)}
                             </ThemedText>
                         </View>
                         <View style={[styles.totalRow, styles.finalTotal]}>
                             <ThemedText style={styles.finalTotalLabel}>Total</ThemedText>
                             <ThemedText style={[styles.finalTotalValue, { color: colors.primary }]}>
-                                {formatCurrency(invoice.totalAmount)}
+                                {formatCurrency(invoice.totalAmount, invoice.currency)}
                             </ThemedText>
                         </View>
                     </View>

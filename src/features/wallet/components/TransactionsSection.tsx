@@ -1,4 +1,5 @@
 import { ThemedText } from '@/shared/components/themed-text';
+import { formatCurrency } from '@/shared/constants/currency';
 import { Colors } from '@/shared/constants/theme';
 import { useColorScheme } from '@/shared/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,10 +25,6 @@ const STATUS_OPTIONS = ['all', 'completed', 'pending', 'failed', 'reversed'];
 const CATEGORY_OPTIONS = ['all', 'order_payment', 'invoice_payment', 'payout', 'refund', 'fee', 'adjustment', 'reversal'];
 
 // ─── Helpers ─────────────────────────────────────────────
-function formatCurrency(amount: number) {
-    return `₦${(amount || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
 function formatDate(dateStr: string) {
     try {
         return new Date(dateStr).toLocaleDateString('en-NG', {
@@ -126,7 +123,7 @@ function TransactionRow({ t, colors }: { t: any; colors: typeof Colors.light }) 
                     adjustsFontSizeToFit
                     minimumFontScale={0.8}
                 >
-                    {isCredit ? '+' : '−'}{formatCurrency(t.amount)}
+                    {isCredit ? '+' : '−'}{formatCurrency(t.amount, t.currency)}
                 </ThemedText>
                 <View style={[styles.statusBadge, { backgroundColor: `${statusColor}15` }]}>
                     <ThemedText style={[styles.statusText, { color: statusColor }]}>

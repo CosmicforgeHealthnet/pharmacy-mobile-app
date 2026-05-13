@@ -3,11 +3,14 @@
 export type PrescriptionStatus =
     | 'new'
     | 'pending'
+    | 'patient_uploaded'
     | 'pharmacy_assigned'
     | 'under_review'
+    | 'pharmacy_processing'
     | 'awaiting_payment'
     | 'in_progress'
     | 'ready_for_pickup'
+    | 'ready_for_delivery'
     | 'out_for_delivery'
     | 'completed'
     | 'cancelled';
@@ -137,20 +140,37 @@ export interface AddInternalNoteRequest {
 export interface ProposeAlternativeItem {
     name: string;
     dosage: string;
-    reason: string;
+    note: string;
 }
 
 export interface ProposeAlternativeRequest {
     alternatives: ProposeAlternativeItem[];
-    pharmacistId: string;
+}
+
+export interface ProvideCostItem {
+    name: string;
+    unitPrice: number;
+    quantity: number;
 }
 
 export interface ProvideCostsPayload {
-    basePrice: number;
+    items: ProvideCostItem[];
     deliveryFee: number;
-    serviceFee: number;
-    lineItems?: { medicationName: string; quantity: number; unitPrice: number; subtotal: number }[];
-    notes?: string;
+    paymentMethod: string;
+}
+
+export interface MarkReadyPayload {
+    readyType: 'delivery' | 'pickup';
+    expectedDate?: string;
+}
+
+export interface InitiateDispatchPayload {
+    estimatedDelivery?: string;
+    note?: string;
+}
+
+export interface CancelPrescriptionPayload {
+    reason: string;
 }
 
 export interface SendChatMessagePayload {
@@ -162,11 +182,14 @@ export interface SendChatMessagePayload {
 export const STATUS_COLORS: Record<PrescriptionStatus, { bg: string; text: string; border: string }> = {
     new: { bg: '#EFF6FF', text: '#2563EB', border: '#BFDBFE' },
     pending: { bg: '#FFFBEB', text: '#D97706', border: '#FDE68A' },
+    patient_uploaded: { bg: '#F0F9FF', text: '#0284C7', border: '#BAE6FD' },
     pharmacy_assigned: { bg: '#F3E8FF', text: '#7C3AED', border: '#DDD6FE' },
     under_review: { bg: '#FFF7ED', text: '#EA580C', border: '#FED7AA' },
+    pharmacy_processing: { bg: '#FDF4FF', text: '#A855F7', border: '#E9D5FF' },
     awaiting_payment: { bg: '#FFFBEB', text: '#D97706', border: '#FDE68A' },
     in_progress: { bg: '#ECFEFF', text: '#0891B2', border: '#A5F3FC' },
     ready_for_pickup: { bg: '#F0FDFA', text: '#0D9488', border: '#99F6E4' },
+    ready_for_delivery: { bg: '#F0FDF4', text: '#22C55E', border: '#BBF7D0' },
     out_for_delivery: { bg: '#EEF2FF', text: '#4F46E5', border: '#C7D2FE' },
     completed: { bg: '#F0FDF4', text: '#16A34A', border: '#BBF7D0' },
     cancelled: { bg: '#FEF2F2', text: '#DC2626', border: '#FECACA' },

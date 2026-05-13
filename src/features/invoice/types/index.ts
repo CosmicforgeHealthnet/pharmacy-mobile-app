@@ -27,6 +27,7 @@ export interface Invoice {
     subtotal: number;
     deliveryFee: number;
     totalAmount: number;
+    currency: string;
     paymentMethod: InvoicePaymentMethod;
     status: InvoiceStatus;
     paidAt?: string;
@@ -50,11 +51,10 @@ export interface InvoiceListResponse {
 
 export interface CreateInvoicePayload {
     prescriptionId: string;
-    lineItems: { medicationName: string; quantity: number; unitPrice: number; subtotal: number }[];
+    lineItems: { medicationName: string; unitPrice: number; quantity: number; dosage?: string }[];
     deliveryFee?: number;
     paymentMethod: InvoicePaymentMethod;
     notes?: string;
-    dueAt?: string;
 }
 
 export type PaymentSource = 'wallet' | 'card';
@@ -102,7 +102,9 @@ export function formatInvoiceStatus(status: InvoiceStatus): string {
     return labels[status] ?? status;
 }
 
-export function formatCurrency(amount: number): string {
+// Note: Use formatCurrency from '@/shared/constants/currency' instead
+// This function is deprecated - kept for backwards compatibility
+export function formatCurrencyLegacy(amount: number): string {
     return `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 

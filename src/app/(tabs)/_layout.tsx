@@ -4,9 +4,15 @@ import { useColorScheme } from '@/shared/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { useSocketConnection, usePharmacyEventRefresh } from '@/features/notifications/hooks/useNotifications';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+
+  // Initialize socket connection for real-time notifications
+  useSocketConnection();
+  // Auto-refresh queries when pharmacy events occur
+  usePharmacyEventRefresh();
 
   return (
     <Tabs

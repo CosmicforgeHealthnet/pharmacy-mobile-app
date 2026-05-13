@@ -1,5 +1,6 @@
 import { ThemedText } from '@/shared/components/themed-text';
 import { ThemedView } from '@/shared/components/themed-view';
+import { formatCurrency } from '@/shared/constants/currency';
 import { Colors } from '@/shared/constants/theme';
 import { useColorScheme } from '@/shared/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -219,13 +220,10 @@ function SectionHeader({ title, onSeeAll, colors }: { title: string; onSeeAll?: 
 // ─── Wallet Balance Card ─────────────────────────────
 function WalletBalanceCard({ colors, onPress }: { colors: typeof Colors.light; onPress: () => void }) {
     const [isBalanceVisible, setIsBalanceVisible] = React.useState(true);
-    
+
     const { data: walletSummary, isLoading } = useWalletSummary();
     const walletBalance = walletSummary?.availableBalance || 0;
-
-    const formatCurrency = (amount: number) => {
-        return `₦${(amount || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    };
+    const currency = walletSummary?.currency || 'NGN';
 
     return (
         <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
@@ -260,7 +258,7 @@ function WalletBalanceCard({ colors, onPress }: { colors: typeof Colors.light; o
                         </TouchableOpacity>
                     </View>
                     <ThemedText style={styles.walletBalanceAmount}>
-                        {isLoading ? '₦••••••' : isBalanceVisible ? formatCurrency(walletBalance) : '₦••••••'}
+                        {isLoading ? '••••••' : isBalanceVisible ? formatCurrency(walletBalance, currency) : '••••••'}
                     </ThemedText>
                 </View>
 
@@ -709,6 +707,8 @@ export function HomeScreen() {
 
     // Fetch real API data
     const { stats, activities, prescriptions, orders, loading, refetch } = useHomeData();
+    const { data: walletSummary } = useWalletSummary();
+    const currency = walletSummary?.currency || 'NGN';
 
     // Load user name from storage
     React.useEffect(() => {
@@ -739,8 +739,8 @@ export function HomeScreen() {
         { label: 'Pending Requests', value: stats?.pendingPrescriptions ?? 0, icon: 'document-text-outline' as const },
         { label: 'Active Orders', value: stats?.activeOrders ?? 0, icon: 'pulse-outline' as const },
         { label: 'Completed Today', value: stats?.completedToday ?? 0, icon: 'checkmark-circle-outline' as const },
-        { label: 'Total Revenue', value: stats?.totalRevenue ? `₦${stats.totalRevenue.toLocaleString()}` : '₦0', icon: 'trending-up-outline' as const },
-    ], [stats]);
+        { label: 'Total Revenue', value: formatCurrency(stats?.totalRevenue ?? 0, currency), icon: 'trending-up-outline' as const },
+    ], [stats, currency]);
 
     // Map prescriptions to display format
     const prescriptionRequests = React.useMemo(() =>

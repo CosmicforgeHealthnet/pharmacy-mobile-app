@@ -8,6 +8,8 @@ import type {
     AddInternalNoteRequest,
     ProposeAlternativeRequest,
     ProvideCostsPayload,
+    MarkReadyPayload,
+    InitiateDispatchPayload,
     SendChatMessagePayload,
 } from '../types';
 
@@ -17,7 +19,12 @@ export const PRESCRIPTION_KEYS = {
     list: (params?: object) => [...PRESCRIPTION_KEYS.all, 'list', params] as const,
     detail: (id: string) => [...PRESCRIPTION_KEYS.all, 'detail', id] as const,
     search: (query: string, params?: object) => [...PRESCRIPTION_KEYS.all, 'search', query, params] as const,
+    dashboard: () => [...PRESCRIPTION_KEYS.all, 'dashboard'] as const,
+    active: () => [...PRESCRIPTION_KEYS.all, 'active'] as const,
 } as const;
+
+/** Statuses that represent new / unattended prescription requests */
+const NEW_STATUSES = ['new', 'pending'];
 
 // ─── Queries ───────────────────────────────────────────
 
@@ -29,6 +36,22 @@ export const usePrescriptions = (params?: { status?: string; page?: number; limi
         queryKey: PRESCRIPTION_KEYS.list(params),
         queryFn: () => prescriptionService.getPrescriptions(params),
         staleTime: 60 * 1000, // 1 minute
+    });
+};
+
+/**
+ * Fetch new/pending prescriptions (for dashboard/home widgets)
+ */
+export const useNewPrescriptions = (limit = 5) => {
+    return useQuery({
+        queryKey: PRESCRIPTION_KEYS.list({ new: true, limit }),
+        queryFn: () => prescriptionService.getPrescriptions({ limit }),
+        staleTime: 60 * 1000,
+        select: (data) => {
+            return data
+                .filter((p) => NEW_STATUSES.includes(p.status))
+                .slice(0, limit);
+        },
     });
 };
 
@@ -121,7 +144,7 @@ export const useProposeAlternative = (prescriptionId: string) => {
 export const useStartProcessing = (prescriptionId: string) => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: () => prescriptionService.startProcessing(prescriptionId),
+        mutationFn: (pharmacistId: string) => prescriptionService.startProcessing(prescriptionId, pharmacistId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: PRESCRIPTION_KEYS.detail(prescriptionId) });
             queryClient.invalidateQueries({ queryKey: PRESCRIPTION_KEYS.all });
@@ -144,12 +167,12 @@ export const useProvideCosts = (prescriptionId: string) => {
 };
 
 /**
- * Mark prescription as ready for pickup
+ * Mark prescription as ready for pickup or delivery
  */
 export const useMarkReady = (prescriptionId: string) => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: () => prescriptionService.markReady(prescriptionId),
+        mutationFn: (data: MarkReadyPayload) => prescriptionService.markReady(prescriptionId, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: PRESCRIPTION_KEYS.detail(prescriptionId) });
             queryClient.invalidateQueries({ queryKey: PRESCRIPTION_KEYS.all });
@@ -163,7 +186,7 @@ export const useMarkReady = (prescriptionId: string) => {
 export const useInitiateDispatch = (prescriptionId: string) => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (note?: string) => prescriptionService.initiateDispatch(prescriptionId, note),
+        mutationFn: (data: InitiateDispatchPayload) => prescriptionService.initiateDispatch(prescriptionId, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: PRESCRIPTION_KEYS.detail(prescriptionId) });
             queryClient.invalidateQueries({ queryKey: PRESCRIPTION_KEYS.all });
@@ -200,12 +223,12 @@ export const useCompletePrescription = (prescriptionId: string) => {
 };
 
 /**
- * Cancel prescription with optional reason
+ * Cancel prescription with reason
  */
 export const useCancelPrescription = (prescriptionId: string) => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (reason?: string) => prescriptionService.cancelPrescription(prescriptionId, reason),
+        mutationFn: (reason: string) => prescriptionService.cancelPrescription(prescriptionId, { reason }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: PRESCRIPTION_KEYS.detail(prescriptionId) });
             queryClient.invalidateQueries({ queryKey: PRESCRIPTION_KEYS.all });

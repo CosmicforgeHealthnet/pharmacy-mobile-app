@@ -87,3 +87,59 @@ export function getCurrencySymbol(code?: string | null): string {
     if (!code) return '';
     return CURRENCY_SYMBOLS[code] ?? code;
 }
+
+/** Currency locale settings for Intl formatting */
+const CURRENCY_LOCALES: Record<string, string> = {
+    NGN: 'en-NG',
+    USD: 'en-US',
+    EUR: 'en-EU',
+    GBP: 'en-GB',
+    KES: 'en-KE',
+    ZAR: 'en-ZA',
+    GHS: 'en-GH',
+    INR: 'en-IN',
+};
+
+/** Returns the locale string for a currency code */
+export function getCurrencyLocale(code?: string | null): string {
+    if (!code) return 'en-NG';
+    return CURRENCY_LOCALES[code] ?? 'en-US';
+}
+
+/**
+ * Formats an amount with the given currency code.
+ * Always use this function to format monetary amounts.
+ * The currency should come from the API response.
+ *
+ * @param amount - The amount to format
+ * @param currencyCode - The currency code from the API (e.g., 'NGN', 'USD')
+ * @returns Formatted currency string (e.g., '₦1,234.56')
+ */
+/** Formats a number as a currency string. Returns "—" if no symbol provided. */
+export function formatCurrencyAmount(
+    amount: number,
+    symbol: string,
+    locale?: string,
+): string {
+    if (!symbol) return '—';
+    return `${symbol}${amount.toLocaleString(locale ?? 'en-NG', { minimumFractionDigits: 2 })}`;
+}
+
+/**
+ * Formats an amount with the given currency code.
+ * Always use this function to format monetary amounts.
+ * The currency should come from the API response.
+ *
+ * @param amount - The amount to format
+ * @param currencyCode - The currency code from the API (e.g., 'NGN', 'USD')
+ * @returns Formatted currency string (e.g., '₦1,234.56')
+ */
+export function formatCurrency(amount: number, currencyCode?: string | null): string {
+    const code = currencyCode || 'NGN';
+    const symbol = getCurrencySymbol(code);
+    const locale = getCurrencyLocale(code);
+    return `${symbol}${(amount || 0).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** Text shown when currency has not been configured yet */
+export const NO_CURRENCY_SET = '—';

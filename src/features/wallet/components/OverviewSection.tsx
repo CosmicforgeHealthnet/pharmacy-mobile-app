@@ -1,4 +1,5 @@
 import { ThemedText } from '@/shared/components/themed-text';
+import { formatCurrency } from '@/shared/constants/currency';
 import { Colors } from '@/shared/constants/theme';
 import { useColorScheme } from '@/shared/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -81,9 +82,6 @@ function RecentTransactionRow({ transaction }: { transaction: Transaction }) {
         }
     };
 
-    const formatCurrency = (amount: number) =>
-        `₦${(amount || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
     return (
         <View style={styles.txRow}>
             {/* Type icon */}
@@ -111,7 +109,7 @@ function RecentTransactionRow({ transaction }: { transaction: Transaction }) {
                     adjustsFontSizeToFit
                     minimumFontScale={0.7}
                 >
-                    {isCredit ? '+' : '-'}{formatCurrency(transaction.amount)}
+                    {isCredit ? '+' : '-'}{formatCurrency(transaction.amount, transaction.currency)}
                 </ThemedText>
                 <View style={[styles.txStatusBadge, { backgroundColor: `${getStatusColor(transaction.status)}15` }]}>
                     <ThemedText style={[styles.txStatusText, { color: getStatusColor(transaction.status) }]}>
@@ -139,8 +137,8 @@ export function OverviewSection({
     const { data: txData } = useWalletTransactions();
     const transactions = txData ?? [];
 
-    const formatCurrency = (amount: number) =>
-        `₦${(amount || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    // Get currency from wallet summary
+    const currency = walletSummary?.currency || 'NGN';
 
     const filteredTx = transactions.filter((t: Transaction) => {
         if (!search) return true;
@@ -160,10 +158,10 @@ export function OverviewSection({
         <View style={styles.section}>
             {/* Stats Grid */}
             <View style={styles.statsGrid}>
-                <StatCard label="Total Balance" value={formatCurrency(totalBalance)} sub="Wallet total" />
-                <StatCard label="Total Earnings" value={formatCurrency(totalEarnings)} sub="All time" />
-                <StatCard label="Pending" value={formatCurrency(pendingBalance)} sub="Clears in 1–3 days" />
-                <StatCard label="Available" value={formatCurrency(availableBalance)} sub="Ready for payout" highlight />
+                <StatCard label="Total Balance" value={formatCurrency(totalBalance, currency)} sub="Wallet total" />
+                <StatCard label="Total Earnings" value={formatCurrency(totalEarnings, currency)} sub="All time" />
+                <StatCard label="Pending" value={formatCurrency(pendingBalance, currency)} sub="Clears in 1–3 days" />
+                <StatCard label="Available" value={formatCurrency(availableBalance, currency)} sub="Ready for payout" highlight />
             </View>
 
             {/* Recent Transactions */}

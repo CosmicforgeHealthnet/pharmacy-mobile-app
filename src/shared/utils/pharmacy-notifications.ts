@@ -68,7 +68,7 @@ export function getPharmacyNotifications(
                 : 'A few optional details are missing. Filling them in helps patients learn more about your pharmacy.',
             items: allMissing,
             actionLabel: 'Complete Profile',
-            actionRoute: '/profile/pharmacy-info',
+            actionRoute: '/profile',
         });
     }
 

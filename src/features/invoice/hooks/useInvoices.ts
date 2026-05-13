@@ -84,6 +84,8 @@ export const useSendInvoice = () => {
         onSuccess: (_, invoiceId) => {
             queryClient.invalidateQueries({ queryKey: INVOICE_KEYS.detail(invoiceId) });
             queryClient.invalidateQueries({ queryKey: INVOICE_KEYS.all });
+            // Prescription status moves to awaiting_payment — re-fetch it
+            queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
         },
     });
 };

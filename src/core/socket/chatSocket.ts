@@ -22,42 +22,8 @@
  */
 import { Socket } from "socket.io-client";
 import { socketCore } from "./socketClient";
+import { CallbackManager } from "./CallbackManager";
 import { ChatMessage, AppointmentChat } from "@/features/messages/types";
-
-// ─── Callback Manager (shared pattern with notificationSocket) ─────────────────
-
-class CallbackManager<T extends (...args: any[]) => void> {
-   private callbacks: T[] = [];
-
-   add(cb: T): void {
-      this.callbacks.push(cb);
-   }
-
-   remove(cb: T): boolean {
-      const i = this.callbacks.indexOf(cb);
-      if (i !== -1) {
-         this.callbacks.splice(i, 1);
-         return true;
-      }
-      return false;
-   }
-
-   execute(...args: Parameters<T>): void {
-      this.callbacks.forEach((cb) => {
-         try {
-            cb(...args);
-         } catch {}
-      });
-   }
-
-   clear(): void {
-      this.callbacks.length = 0;
-   }
-
-   get size(): number {
-      return this.callbacks.length;
-   }
-}
 
 // ─── Callback Registries ──────────────────────────────────────────────────────
 
@@ -85,18 +51,26 @@ export const chatSocket = {
    setupListeners(socket: Socket) {
       const events = [
          "new_message",
+         "new_chat_message",
          "message_edited",
          "message_deleted",
          "message_read",
          "user_typing",
          "appointment_status",
-         "appointment_joined"
+         "appointment_joined",
+         "appointment_ended",
       ];
       // Remove stale listeners to prevent duplicates on reconnect
       events.forEach((e) => socket.off(e));
 
       socket.on("new_message", (m: ChatMessage) => {
          console.log("💬 [ChatSocket] new_message:", m.id);
+         onNewMessageCbs.execute(m);
+      });
+
+      // Handle both event names for compatibility with different server implementations
+      socket.on("new_chat_message", (m: ChatMessage) => {
+         console.log("💬 [ChatSocket] new_chat_message:", m.id);
          onNewMessageCbs.execute(m);
       });
 
@@ -122,6 +96,11 @@ export const chatSocket = {
 
       socket.on("appointment_joined", (d: any) => {
          onAppointmentJoinedCbs.execute(d);
+      });
+
+      socket.on("appointment_ended", (d: { appointmentChat: AppointmentChat }) => {
+         console.log("📅 [ChatSocket] appointment_ended:", d.appointmentChat?.id);
+         onAppointmentEndedCbs.execute(d);
       });
    },
 

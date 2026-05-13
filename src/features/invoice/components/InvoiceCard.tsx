@@ -1,4 +1,5 @@
 import { ThemedText } from '@/shared/components/themed-text';
+import { formatCurrency } from '@/shared/constants/currency';
 import { Colors } from '@/shared/constants/theme';
 import { useColorScheme } from '@/shared/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -66,10 +67,6 @@ export function InvoiceCard({ invoice, onPress }: InvoiceCardProps) {
         cancelled: 'Cancelled',
     };
 
-    const formatCurrency = (amount: number) => {
-        return `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    };
-
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', {
@@ -125,7 +122,7 @@ export function InvoiceCard({ invoice, onPress }: InvoiceCardProps) {
             <View style={styles.footer}>
                 <View style={styles.amountSection}>
                     <ThemedText style={[styles.totalAmount, { color: colors.text }]}>
-                        {formatCurrency(invoice.totalAmount)}
+                        {formatCurrency(invoice.totalAmount, invoice.currency)}
                     </ThemedText>
                     {isPending && (
                         <ThemedText style={[styles.payNowText, { color: '#F59E0B' }]}>

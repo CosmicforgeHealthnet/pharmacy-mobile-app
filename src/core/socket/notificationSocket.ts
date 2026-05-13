@@ -17,6 +17,7 @@
  */
 import { Socket } from "socket.io-client";
 import { socketCore } from "./socketClient";
+import { CallbackManager } from "./CallbackManager";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -45,32 +46,6 @@ export interface MarkNotificationReadData {
 export interface NotificationDeletedData {
    notificationId: string;
    userId: string;
-}
-
-// ─── Callback Manager ─────────────────────────────────────────────────────────
-
-class CallbackManager<T extends (...args: any[]) => void> {
-   private callbacks: T[] = [];
-
-   add(cb: T): void {
-      this.callbacks.push(cb);
-   }
-
-   remove(cb: T): boolean {
-      const i = this.callbacks.indexOf(cb);
-      if (i !== -1) { this.callbacks.splice(i, 1); return true; }
-      return false;
-   }
-
-   execute(...args: Parameters<T>): void {
-      this.callbacks.forEach((cb) => {
-         try { cb(...args); } catch {}
-      });
-   }
-
-   clear(): void { this.callbacks.length = 0; }
-
-   get size(): number { return this.callbacks.length; }
 }
 
 // ─── Callback Registries ──────────────────────────────────────────────────────

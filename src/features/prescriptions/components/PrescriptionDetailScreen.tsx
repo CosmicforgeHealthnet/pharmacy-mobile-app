@@ -26,8 +26,9 @@ import {
     useCancelPrescription,
     useConfirmAvailability,
 } from '../hooks';
-import type { PrescriptionDetail, PrescriptionMedication, FulfillmentHistoryItem } from '../types';
+import type { PrescriptionDetail, PrescriptionMedication, FulfillmentHistoryItem, ProvideCostItem } from '../types';
 import { getStatusColor, formatStatus, formatRelativeTime } from '../types';
+import { useProfile } from '@/features/authentication/hooks/useAuth';
 
 // ─── Section Header ────────────────────────────────────
 function SectionHeader({ title, count, colors }: { title: string; count?: number; colors: typeof Colors.light }) {
@@ -138,20 +139,33 @@ function CostModal({
     onSubmit,
     isLoading,
     colors,
+    medications,
 }: {
     visible: boolean;
     onClose: () => void;
-    onSubmit: (basePrice: number, deliveryFee: number, serviceFee: number) => void;
+    onSubmit: (items: ProvideCostItem[], deliveryFee: number, paymentMethod: string) => void;
     isLoading: boolean;
     colors: typeof Colors.light;
+    medications: PrescriptionMedication[];
 }) {
-    const [basePrice, setBasePrice] = useState('');
+    const [itemPrices, setItemPrices] = useState<Record<string, string>>({});
     const [deliveryFee, setDeliveryFee] = useState('');
-    const [serviceFee, setServiceFee] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState('card');
+
+    const handleItemPriceChange = (medName: string, value: string) => {
+        setItemPrices((prev) => ({ ...prev, [medName]: value }));
+    };
 
     const handleSubmit = () => {
-        onSubmit(Number(basePrice) || 0, Number(deliveryFee) || 0, Number(serviceFee) || 0);
+        const items: ProvideCostItem[] = medications.map((med) => ({
+            name: med.name,
+            unitPrice: Number(itemPrices[med.name]) || 0,
+            quantity: med.quantity,
+        }));
+        onSubmit(items, Number(deliveryFee) || 0, paymentMethod);
     };
+
+    const hasAtLeastOnePrice = Object.values(itemPrices).some((p) => Number(p) > 0);
 
     return (
         <Modal visible={visible} transparent animationType="slide">
@@ -164,43 +178,69 @@ function CostModal({
                         </TouchableOpacity>
                     </View>
 
-                    <View style={styles.modalBody}>
-                        <View style={styles.inputGroup}>
-                            <ThemedText style={styles.inputLabel}>Base Price</ThemedText>
-                            <TextInput
-                                style={[styles.textInput, { backgroundColor: colors.inputBackground, color: colors.text }]}
-                                placeholder="0.00"
-                                placeholderTextColor={colors.placeholder}
-                                keyboardType="numeric"
-                                value={basePrice}
-                                onChangeText={setBasePrice}
-                            />
-                        </View>
+                    <ScrollView style={styles.modalScrollBody}>
+                        <View style={styles.modalBody}>
+                            <ThemedText style={[styles.inputLabel, { marginBottom: 8 }]}>
+                                Medication Prices
+                            </ThemedText>
+                            {medications.map((med) => (
+                                <View key={med.name} style={styles.inputGroup}>
+                                    <ThemedText style={[styles.medPriceLabel, { color: colors.placeholder }]}>
+                                        {med.name} (x{med.quantity})
+                                    </ThemedText>
+                                    <TextInput
+                                        style={[styles.textInput, { backgroundColor: colors.inputBackground, color: colors.text }]}
+                                        placeholder="Unit price"
+                                        placeholderTextColor={colors.placeholder}
+                                        keyboardType="numeric"
+                                        value={itemPrices[med.name] || ''}
+                                        onChangeText={(v) => handleItemPriceChange(med.name, v)}
+                                    />
+                                </View>
+                            ))}
 
-                        <View style={styles.inputGroup}>
-                            <ThemedText style={styles.inputLabel}>Delivery Fee</ThemedText>
-                            <TextInput
-                                style={[styles.textInput, { backgroundColor: colors.inputBackground, color: colors.text }]}
-                                placeholder="0.00"
-                                placeholderTextColor={colors.placeholder}
-                                keyboardType="numeric"
-                                value={deliveryFee}
-                                onChangeText={setDeliveryFee}
-                            />
-                        </View>
+                            <View style={[styles.inputGroup, { marginTop: 16 }]}>
+                                <ThemedText style={styles.inputLabel}>Delivery Fee</ThemedText>
+                                <TextInput
+                                    style={[styles.textInput, { backgroundColor: colors.inputBackground, color: colors.text }]}
+                                    placeholder="0.00"
+                                    placeholderTextColor={colors.placeholder}
+                                    keyboardType="numeric"
+                                    value={deliveryFee}
+                                    onChangeText={setDeliveryFee}
+                                />
+                            </View>
 
-                        <View style={styles.inputGroup}>
-                            <ThemedText style={styles.inputLabel}>Service Fee</ThemedText>
-                            <TextInput
-                                style={[styles.textInput, { backgroundColor: colors.inputBackground, color: colors.text }]}
-                                placeholder="0.00"
-                                placeholderTextColor={colors.placeholder}
-                                keyboardType="numeric"
-                                value={serviceFee}
-                                onChangeText={setServiceFee}
-                            />
+                            <View style={styles.inputGroup}>
+                                <ThemedText style={styles.inputLabel}>Payment Method</ThemedText>
+                                <View style={styles.paymentMethodRow}>
+                                    {['card', 'cash', 'transfer'].map((method) => (
+                                        <TouchableOpacity
+                                            key={method}
+                                            style={[
+                                                styles.paymentMethodOption,
+                                                {
+                                                    backgroundColor: paymentMethod === method ? colors.primary : colors.inputBackground,
+                                                    borderColor: paymentMethod === method ? colors.primary : colors.inputBackground,
+                                                },
+                                            ]}
+                                            onPress={() => setPaymentMethod(method)}
+                                        >
+                                            <ThemedText
+                                                style={{
+                                                    color: paymentMethod === method ? '#FFFFFF' : colors.text,
+                                                    fontWeight: '500',
+                                                    textTransform: 'capitalize',
+                                                }}
+                                            >
+                                                {method}
+                                            </ThemedText>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
                         </View>
-                    </View>
+                    </ScrollView>
 
                     <View style={styles.modalFooter}>
                         <TouchableOpacity
@@ -212,7 +252,7 @@ function CostModal({
                         <TouchableOpacity
                             style={[styles.modalButton, styles.submitButton, { backgroundColor: colors.primary }]}
                             onPress={handleSubmit}
-                            disabled={isLoading || !basePrice}
+                            disabled={isLoading || !hasAtLeastOnePrice}
                         >
                             {isLoading ? (
                                 <ActivityIndicator size="small" color="#FFFFFF" />
@@ -237,8 +277,14 @@ export function PrescriptionDetailScreen() {
     const [showCostModal, setShowCostModal] = useState(false);
     const [showDispatchModal, setShowDispatchModal] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
+    const [showReadyModal, setShowReadyModal] = useState(false);
     const [dispatchNote, setDispatchNote] = useState('');
+    const [estimatedDelivery, setEstimatedDelivery] = useState('');
     const [cancelReason, setCancelReason] = useState('');
+
+    // Fetch profile for pharmacistId
+    const { data: profile } = useProfile();
+    const pharmacistId = profile?.id ?? '';
 
     // Fetch prescription details
     const { data: prescription, isLoading, refetch } = usePrescriptionById(id);
@@ -262,38 +308,40 @@ export function PrescriptionDetailScreen() {
             'Are you sure you want to start processing this prescription? This will notify the patient.',
             [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Start', onPress: () => startProcessing() },
+                { text: 'Start', onPress: () => startProcessing(pharmacistId) },
             ]
         );
     };
 
-    const handleProvideCosts = (basePrice: number, deliveryFee: number, serviceFee: number) => {
+    const handleProvideCosts = (items: ProvideCostItem[], deliveryFee: number, paymentMethod: string) => {
         provideCosts(
-            { basePrice, deliveryFee, serviceFee },
+            { items, deliveryFee, paymentMethod },
             {
                 onSuccess: () => setShowCostModal(false),
             }
         );
     };
 
-    const handleMarkReady = () => {
-        Alert.alert(
-            'Mark as Ready',
-            'Confirm that this prescription is packed and ready for pickup or delivery.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Confirm', onPress: () => markReady() },
-            ]
+    const handleMarkReady = (readyType: 'delivery' | 'pickup') => {
+        markReady(
+            { readyType },
+            {
+                onSuccess: () => setShowReadyModal(false),
+            }
         );
     };
 
     const handleDispatch = () => {
-        dispatch(dispatchNote || undefined, {
-            onSuccess: () => {
-                setShowDispatchModal(false);
-                setDispatchNote('');
-            },
-        });
+        dispatch(
+            { note: dispatchNote || undefined, estimatedDelivery: estimatedDelivery || undefined },
+            {
+                onSuccess: () => {
+                    setShowDispatchModal(false);
+                    setDispatchNote('');
+                    setEstimatedDelivery('');
+                },
+            }
+        );
     };
 
     const handleMarkDelivered = () => {
@@ -384,6 +432,7 @@ export function PrescriptionDetailScreen() {
 
             case 'under_review':
             case 'in_progress':
+            case 'pharmacy_processing':
                 return (
                     <>
                         <TouchableOpacity
@@ -396,7 +445,7 @@ export function PrescriptionDetailScreen() {
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.actionButton, styles.outlineButton, { borderColor: colors.primary }]}
-                            onPress={handleMarkReady}
+                            onPress={() => setShowReadyModal(true)}
                             disabled={isAnyLoading}
                         >
                             {isMarkingReady ? (
@@ -424,18 +473,6 @@ export function PrescriptionDetailScreen() {
                 );
 
             case 'ready_for_pickup':
-                if (hasDeliveryAddress) {
-                    return (
-                        <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: colors.primary }]}
-                            onPress={() => setShowDispatchModal(true)}
-                            disabled={isAnyLoading}
-                        >
-                            <Ionicons name="car-outline" size={20} color="#FFFFFF" />
-                            <ThemedText style={styles.actionButtonText}>Dispatch Order</ThemedText>
-                        </TouchableOpacity>
-                    );
-                }
                 return (
                     <TouchableOpacity
                         style={[styles.actionButton, { backgroundColor: '#16A34A' }]}
@@ -450,6 +487,18 @@ export function PrescriptionDetailScreen() {
                                 <ThemedText style={styles.actionButtonText}>Mark as Collected</ThemedText>
                             </>
                         )}
+                    </TouchableOpacity>
+                );
+
+            case 'ready_for_delivery':
+                return (
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: colors.primary }]}
+                        onPress={() => setShowDispatchModal(true)}
+                        disabled={isAnyLoading}
+                    >
+                        <Ionicons name="car-outline" size={20} color="#FFFFFF" />
+                        <ThemedText style={styles.actionButtonText}>Dispatch Order</ThemedText>
                     </TouchableOpacity>
                 );
 
@@ -713,7 +762,71 @@ export function PrescriptionDetailScreen() {
                 onSubmit={handleProvideCosts}
                 isLoading={isProvidingCosts}
                 colors={colors}
+                medications={prescription?.medications ?? []}
             />
+
+            {/* Mark Ready Modal */}
+            <Modal visible={showReadyModal} transparent animationType="slide">
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+                        <View style={styles.modalHeader}>
+                            <ThemedText style={styles.modalTitle}>Mark as Ready</ThemedText>
+                            <TouchableOpacity onPress={() => setShowReadyModal(false)}>
+                                <Ionicons name="close" size={24} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.modalBody}>
+                            <ThemedText style={[styles.cancelWarning, { color: colors.placeholder }]}>
+                                How will the patient receive their prescription?
+                            </ThemedText>
+                            <View style={styles.readyTypeButtons}>
+                                <TouchableOpacity
+                                    style={[styles.readyTypeButton, { borderColor: colors.primary }]}
+                                    onPress={() => handleMarkReady('pickup')}
+                                    disabled={isMarkingReady}
+                                >
+                                    {isMarkingReady ? (
+                                        <ActivityIndicator size="small" color={colors.primary} />
+                                    ) : (
+                                        <>
+                                            <Ionicons name="storefront-outline" size={32} color={colors.primary} />
+                                            <ThemedText style={[styles.readyTypeText, { color: colors.primary }]}>
+                                                Pickup
+                                            </ThemedText>
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.readyTypeButton, { borderColor: colors.primary }]}
+                                    onPress={() => handleMarkReady('delivery')}
+                                    disabled={isMarkingReady}
+                                >
+                                    {isMarkingReady ? (
+                                        <ActivityIndicator size="small" color={colors.primary} />
+                                    ) : (
+                                        <>
+                                            <Ionicons name="car-outline" size={32} color={colors.primary} />
+                                            <ThemedText style={[styles.readyTypeText, { color: colors.primary }]}>
+                                                Delivery
+                                            </ThemedText>
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        <View style={styles.modalFooter}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.cancelButton, { borderColor: colors.inputBackground }]}
+                                onPress={() => setShowReadyModal(false)}
+                            >
+                                <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
 
             {/* Dispatch Modal */}
             <Modal visible={showDispatchModal} transparent animationType="slide">
@@ -727,6 +840,16 @@ export function PrescriptionDetailScreen() {
                         </View>
 
                         <View style={styles.modalBody}>
+                            <View style={styles.inputGroup}>
+                                <ThemedText style={styles.inputLabel}>Estimated Delivery (optional)</ThemedText>
+                                <TextInput
+                                    style={[styles.textInput, { backgroundColor: colors.inputBackground, color: colors.text }]}
+                                    placeholder="e.g. Within 2 hours, by 5:00 PM"
+                                    placeholderTextColor={colors.placeholder}
+                                    value={estimatedDelivery}
+                                    onChangeText={setEstimatedDelivery}
+                                />
+                            </View>
                             <View style={styles.inputGroup}>
                                 <ThemedText style={styles.inputLabel}>Note for driver (optional)</ThemedText>
                                 <TextInput
@@ -1149,6 +1272,44 @@ const styles = StyleSheet.create({
     submitButtonText: {
         color: '#FFFFFF',
         fontSize: 15,
+        fontWeight: '600',
+    },
+    // Cost modal additional styles
+    modalScrollBody: {
+        maxHeight: 300,
+    },
+    medPriceLabel: {
+        fontSize: 13,
+        marginBottom: 4,
+    },
+    paymentMethodRow: {
+        flexDirection: 'row',
+        gap: 8,
+        marginTop: 4,
+    },
+    paymentMethodOption: {
+        flex: 1,
+        paddingVertical: 10,
+        borderRadius: 8,
+        borderWidth: 1,
+        alignItems: 'center',
+    },
+    // Ready modal styles
+    readyTypeButtons: {
+        flexDirection: 'row',
+        gap: 16,
+    },
+    readyTypeButton: {
+        flex: 1,
+        paddingVertical: 24,
+        borderRadius: 12,
+        borderWidth: 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+    },
+    readyTypeText: {
+        fontSize: 16,
         fontWeight: '600',
     },
 });

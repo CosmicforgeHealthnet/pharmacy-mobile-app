@@ -8,6 +8,9 @@ import type {
     AddInternalNoteRequest,
     ProposeAlternativeRequest,
     ProvideCostsPayload,
+    MarkReadyPayload,
+    InitiateDispatchPayload,
+    CancelPrescriptionPayload,
     SendChatMessagePayload,
 } from '../types';
 
@@ -62,7 +65,9 @@ export const prescriptionService = {
 
     // Confirm medication availability
     async confirmAvailability(id: string): Promise<PrescriptionDetail> {
-        return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.CONFIRM_AVAILABILITY(id));
+        return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.CONFIRM_AVAILABILITY(id), {
+            availabilityStatus: 'confirmed',
+        });
     },
 
     // Add internal note
@@ -76,8 +81,8 @@ export const prescriptionService = {
     },
 
     // Start processing prescription
-    async startProcessing(id: string): Promise<PrescriptionDetail> {
-        return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.START_PROCESSING(id));
+    async startProcessing(id: string, pharmacistId: string): Promise<PrescriptionDetail> {
+        return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.START_PROCESSING(id), { pharmacistId });
     },
 
     // Provide cost estimate
@@ -85,14 +90,14 @@ export const prescriptionService = {
         return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.PROVIDE_COSTS(id), data);
     },
 
-    // Mark prescription as ready for pickup
-    async markReady(id: string): Promise<PrescriptionDetail> {
-        return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.MARK_READY(id));
+    // Mark prescription as ready for pickup or delivery
+    async markReady(id: string, data: MarkReadyPayload): Promise<PrescriptionDetail> {
+        return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.MARK_READY(id), data);
     },
 
     // Initiate dispatch for delivery
-    async initiateDispatch(id: string, note?: string): Promise<PrescriptionDetail> {
-        return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.DISPATCH(id), { note });
+    async initiateDispatch(id: string, data: InitiateDispatchPayload): Promise<PrescriptionDetail> {
+        return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.DISPATCH(id), data);
     },
 
     // Mark prescription as delivered
@@ -106,8 +111,8 @@ export const prescriptionService = {
     },
 
     // Cancel prescription with reason
-    async cancelPrescription(id: string, reason?: string): Promise<PrescriptionDetail> {
-        return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.CANCEL(id), { reason });
+    async cancelPrescription(id: string, data: CancelPrescriptionPayload): Promise<PrescriptionDetail> {
+        return apiClient.post<PrescriptionDetail>(PRESCRIPTION_URLS.CANCEL(id), data);
     },
 
     // Search prescriptions

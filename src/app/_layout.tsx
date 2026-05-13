@@ -58,6 +58,7 @@ function MainLayout() {
           <Stack.Screen name="prescription/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="wallet" options={{ headerShown: false }} />
           <Stack.Screen name="profile" options={{ headerShown: false }} />
+          <Stack.Screen name="notifications" options={{ headerShown: false }} />
         </Stack>
 
         <StatusBar style={isDark ? 'light' : 'dark'} />

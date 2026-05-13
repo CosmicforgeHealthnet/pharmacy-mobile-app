@@ -1,6 +1,7 @@
 export {
     PRESCRIPTION_KEYS,
     usePrescriptions,
+    useNewPrescriptions,
     usePrescriptionById,
     useSearchPrescriptions,
     useUpdatePrescriptionStatus,

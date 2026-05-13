@@ -40,11 +40,33 @@ class ApiClient {
       this.setupInterceptors();
    }
 
+   // Public endpoints that don't require authentication
+   private readonly publicEndpoints = [
+      '/auth/login',
+      '/auth/register',
+      '/auth/forgot-password',
+      '/auth/reset-password',
+      '/auth/verify-email',
+      '/auth/resend-verification',
+   ];
+
+   private isPublicEndpoint(url?: string): boolean {
+      if (!url) return false;
+      return this.publicEndpoints.some(endpoint => url.includes(endpoint));
+   }
+
    private setupInterceptors(): void {
-      // Request Interceptor - Add auth token
+      // Request Interceptor - Check session and add auth token
       this.client.interceptors.request.use(
          async (config) => {
             const token = await storage.getToken();
+
+            // If no token and not a public endpoint, reject and redirect to login
+            if (!token && !this.isPublicEndpoint(config.url)) {
+               sessionEvents.emitUnauthorized();
+               return Promise.reject(new Error('No active session. Please login.'));
+            }
+
             if (token && config.headers) {
                config.headers.Authorization = `Bearer ${token}`;
             }

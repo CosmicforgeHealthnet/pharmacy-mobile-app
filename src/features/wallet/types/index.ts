@@ -24,7 +24,7 @@ export interface PatientWalletTransaction {
 
 export interface PatientWalletSummary {
     balance: number;
-    currency: "NGN";
+    currency: string;
     totalSpent: number;
     totalToppedUp: number;
     refundsReceived: number;
@@ -35,7 +35,7 @@ export interface PharmacyWalletSummary {
     availableBalance: number;
     pendingClearance: number;
     totalEarnings: number;
-    currency: 'NGN';
+    currency: string;
     thisMonthEarnings: number;
     lastPayoutAmount: number | null;
     lastPayoutDate: string | null;
@@ -77,7 +77,7 @@ export interface EarningsSummary {
     receivedToday: number;
     receivedThisWeek: number;
     receivedThisMonth: number;
-    currency: 'NGN';
+    currency: string;
 }
 
 // ─── Payout Types ─────────────────────────────────────
@@ -111,7 +111,7 @@ export interface PayoutSummary {
     totalPaidOut: number;
     lastPayoutDate?: string;
     lastPayoutAmount?: number;
-    currency: 'NGN';
+    currency: string;
 }
 
 // ─── Dispute Types ────────────────────────────────────
@@ -184,7 +184,7 @@ export interface TransactionSummary {
     totalDebits: number;
     netBalance: number;
     transactionCount: number;
-    currency: 'NGN';
+    currency: string;
 }
 
 // ─── API Response Types ──────────────────────────────

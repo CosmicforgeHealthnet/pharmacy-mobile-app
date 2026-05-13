@@ -30,7 +30,7 @@ export function MessageInput({
     const colors = Colors[colorScheme];
     const [message, setMessage] = useState('');
     const [isTyping, setIsTyping] = useState(false);
-    const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
+    const [typingTimeout, setTypingTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
 
     const handleChangeText = (text: string) => {
         setMessage(text);

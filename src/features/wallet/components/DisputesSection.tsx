@@ -1,4 +1,5 @@
 import { ThemedText } from '@/shared/components/themed-text';
+import { formatCurrency } from '@/shared/constants/currency';
 import { Colors } from '@/shared/constants/theme';
 import { useColorScheme } from '@/shared/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,11 +13,6 @@ import {
     View,
 } from 'react-native';
 import { useWalletDisputes } from '../hooks/useWallet';
-
-// ─── Helpers ─────────────────────────────────────────────
-function formatCurrency(amount: number) {
-    return `₦${(amount || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 function formatDate(dateStr: string) {
     try {
@@ -73,7 +69,7 @@ function DisputeCard({ dispute, colors, onRespond }: DisputeCardProps) {
                 </View>
                 <View style={styles.cardHeaderRight}>
                     <ThemedText style={styles.amountText}>
-                        {formatCurrency(dispute.amount)}
+                        {formatCurrency(dispute.amount, dispute.currency)}
                     </ThemedText>
                     <ThemedText style={[styles.reasonText, { color: colors.placeholder }]}>
                         {dispute.reason}

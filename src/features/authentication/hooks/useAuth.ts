@@ -159,10 +159,12 @@ export function usePricing() {
         staleTime: 5 * 60 * 1000,
         select: (data): PricingItem[] => {
             // Handle different response formats from API
-            if (Array.isArray(data)) return data;
-            if (data?.pricing) return data.pricing;
-            if (data?.data?.pricing) return data.data.pricing;
-            if (Array.isArray(data?.data)) return data.data;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const response = data as any;
+            if (Array.isArray(response)) return response;
+            if (response?.pricing) return response.pricing;
+            if (response?.data?.pricing) return response.data.pricing;
+            if (Array.isArray(response?.data)) return response.data;
             return [];
         },
     });

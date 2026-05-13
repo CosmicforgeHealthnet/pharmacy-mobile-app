@@ -16,8 +16,9 @@ import {
 } from 'react-native';
 import { useInvoices } from '../hooks';
 import type { Invoice, InvoiceStatus } from '../types';
-import { getInvoiceStatusColor, formatInvoiceStatus, formatCurrency, formatInvoiceDate, getInvoiceRef } from '../types';
+import { getInvoiceStatusColor, formatInvoiceStatus, formatInvoiceDate, getInvoiceRef } from '../types';
 import { InvoiceCard } from './InvoiceCard';
+import { CreateInvoiceModal } from './CreateInvoiceModal';
 
 // ─── Filter Chip ─────────────────────────────────────
 function FilterChip({
@@ -102,6 +103,7 @@ export function InvoiceScreen() {
     const colors = Colors[colorScheme];
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [showCreateModal, setShowCreateModal] = useState(false);
 
     // Fetch invoices from API
     const { data: invoices = [], isLoading, refetch, isRefetching } = useInvoices({
@@ -268,6 +270,21 @@ export function InvoiceScreen() {
                     }
                 />
             )}
+
+            {/* FAB - Create Invoice */}
+            <TouchableOpacity
+                style={[styles.fab, { backgroundColor: colors.primary }]}
+                onPress={() => setShowCreateModal(true)}
+                activeOpacity={0.8}
+            >
+                <Ionicons name="add" size={28} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            {/* Create Invoice Modal */}
+            <CreateInvoiceModal
+                visible={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+            />
         </ThemedView>
     );
 }
@@ -403,5 +420,20 @@ const styles = StyleSheet.create({
         width: 70,
         height: 24,
         borderRadius: 12,
+    },
+    fab: {
+        position: 'absolute',
+        bottom: 24,
+        right: 20,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 8,
     },
 });

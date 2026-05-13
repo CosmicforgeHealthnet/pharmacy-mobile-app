@@ -4,7 +4,7 @@ import { Colors } from '@/shared/constants/theme';
 import { useColorScheme } from '@/shared/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -14,12 +14,13 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { useChatMessages, useSendChatMessage, useMarkAsRead } from '../hooks';
-import type { ChatMessage } from '../types';
-import { formatChatTime, getInitials } from '../types';
+import type { ChatMessage, MessageBubbleMessage } from '../types';
+import { getInitials } from '../types';
 import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
-import { TypingIndicator } from './TypingIndicator';
+import { chatSocket } from '@/core/socket/chatSocket';
 
 export function ChatScreen() {
     const router = useRouter();
@@ -27,6 +28,9 @@ export function ChatScreen() {
     const colorScheme = useColorScheme() ?? 'light';
     const colors = Colors[colorScheme];
     const flatListRef = useRef<FlatList>(null);
+    const queryClient = useQueryClient();
+    const [isPatientTyping, setIsPatientTyping] = useState(false);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Get contact info from route params
     const prescriptionId = (params.prescriptionId as string) || (params.id as string) || '';
@@ -36,11 +40,76 @@ export function ChatScreen() {
     const initials = getInitials(patientName);
 
     // Fetch messages from API
-    const { data: messages = [], isLoading, refetch } = useChatMessages(prescriptionId);
+    const { data: messages = [], isLoading } = useChatMessages(prescriptionId);
 
     // Mutations
     const { mutate: sendMessage, isPending: isSending } = useSendChatMessage(prescriptionId);
     const { mutate: markAsRead } = useMarkAsRead(prescriptionId);
+
+    // Join the chat room when entering and leave when exiting
+    useEffect(() => {
+        if (!prescriptionId) return;
+
+        chatSocket.joinRoom(prescriptionId);
+        return () => {
+            chatSocket.leaveRoom(prescriptionId);
+        };
+    }, [prescriptionId]);
+
+    // Listen for real-time messages
+    useEffect(() => {
+        if (!prescriptionId) return;
+
+        const handleNewMessage = (data: ChatMessage) => {
+            // Only refetch if the message is for this prescription
+            if (data?.prescriptionId === prescriptionId || (data as any)?.roomId === prescriptionId) {
+                queryClient.invalidateQueries({ queryKey: ['chatMessages', prescriptionId] });
+            }
+        };
+
+        chatSocket.onNewMessage(handleNewMessage);
+        return () => {
+            chatSocket.offNewMessage(handleNewMessage);
+        };
+    }, [prescriptionId, queryClient]);
+
+    // Listen for typing indicators
+    useEffect(() => {
+        if (!prescriptionId) return;
+
+        const handleTypingStart = (data: { roomId: string; user: any }) => {
+            if (data.roomId === prescriptionId) {
+                setIsPatientTyping(true);
+                // Clear any existing timeout
+                if (typingTimeoutRef.current) {
+                    clearTimeout(typingTimeoutRef.current);
+                }
+                // Auto-hide typing after 3 seconds of no updates
+                typingTimeoutRef.current = setTimeout(() => {
+                    setIsPatientTyping(false);
+                }, 3000);
+            }
+        };
+
+        const handleTypingStop = (data: { roomId: string; user: any }) => {
+            if (data.roomId === prescriptionId) {
+                setIsPatientTyping(false);
+                if (typingTimeoutRef.current) {
+                    clearTimeout(typingTimeoutRef.current);
+                }
+            }
+        };
+
+        chatSocket.onTypingStart(handleTypingStart);
+        chatSocket.onTypingStop(handleTypingStop);
+        return () => {
+            chatSocket.offTypingStart(handleTypingStart);
+            chatSocket.offTypingStop(handleTypingStop);
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+            }
+        };
+    }, [prescriptionId]);
 
     // Mark messages as read when viewing
     useEffect(() => {
@@ -71,28 +140,35 @@ export function ChatScreen() {
     );
 
     const handleTypingStart = useCallback(() => {
-        // TODO: Implement WebSocket typing indicator
-    }, []);
+        if (prescriptionId) {
+            chatSocket.sendTypingStart(prescriptionId);
+        }
+    }, [prescriptionId]);
 
     const handleTypingStop = useCallback(() => {
-        // TODO: Implement WebSocket typing indicator
-    }, []);
+        if (prescriptionId) {
+            chatSocket.sendTypingStop(prescriptionId);
+        }
+    }, [prescriptionId]);
 
     const renderMessage = useCallback(
-        ({ item }: { item: ChatMessage }) => (
-            <MessageBubble
-                message={{
-                    id: item.id,
-                    roomId: prescriptionId,
-                    senderId: item.senderId,
-                    senderName: item.senderType === 'pharmacy' ? 'You' : patientName,
-                    content: item.message,
-                    timestamp: item.createdAt,
-                    isRead: true,
-                }}
-                isOwnMessage={item.senderType === 'pharmacy'}
-            />
-        ),
+        ({ item }: { item: ChatMessage }) => {
+            const bubbleMessage: MessageBubbleMessage = {
+                id: item.id,
+                roomId: prescriptionId,
+                senderId: item.senderId,
+                senderName: item.senderType === 'pharmacy' ? 'You' : patientName,
+                content: item.message,
+                timestamp: item.createdAt,
+                isRead: true,
+            };
+            return (
+                <MessageBubble
+                    message={bubbleMessage}
+                    isOwnMessage={item.senderType === 'pharmacy'}
+                />
+            );
+        },
         [prescriptionId, patientName]
     );
 
@@ -185,6 +261,15 @@ export function ChatScreen() {
                         </View>
                     }
                 />
+
+                {/* Typing indicator */}
+                {isPatientTyping && (
+                    <View style={styles.typingIndicator}>
+                        <ThemedText style={[styles.typingText, { color: colors.placeholder }]}>
+                            {patientName} is typing...
+                        </ThemedText>
+                    </View>
+                )}
 
                 {/* Sending indicator */}
                 {isSending && (
@@ -292,5 +377,13 @@ const styles = StyleSheet.create({
     },
     sendingText: {
         fontSize: 12,
+    },
+    typingIndicator: {
+        paddingHorizontal: 16,
+        paddingVertical: 6,
+    },
+    typingText: {
+        fontSize: 12,
+        fontStyle: 'italic',
     },
 });

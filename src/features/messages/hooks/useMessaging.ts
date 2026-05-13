@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { messagingService } from '../services/messaging.service';
-import type { PharmacyContact, ChatMessage, SendMessagePayload } from '../types';
+import type { ChatMessage, SendMessagePayload } from '../types';
 
 // Query Keys
 export const MESSAGING_KEYS = {

@@ -50,7 +50,8 @@
       "reactCompiler": true
     },
     "extra": {
-      "apiUrl": "https://dev-api.cosmicforge-healthnet.com/api"
+      "apiUrl": "https://dev-api.cosmicforge-healthnet.com/api",
+      "socketUrl": "https://dev-api.cosmicforge-healthnet.com"
     }
   }
 }

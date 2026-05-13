@@ -237,13 +237,13 @@ export function ProfileScreen() {
                 {/* Pharmacy Information */}
                 <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.border }]}>
                     <SectionHeader title="Pharmacy Information" />
-                    <MenuItem
+                    {/* <MenuItem
                         icon="business-outline"
                         label="Pharmacy Details"
                         value={profile?.pharmacyName}
                         onPress={() => router.push('/profile/pharmacy-info')}
                         colors={colors}
-                    />
+                    /> */}
                     <MenuItem
                         icon="time-outline"
                         label="Operating Hours"
