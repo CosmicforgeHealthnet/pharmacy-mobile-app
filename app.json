@@ -24,7 +24,8 @@
         "monochromeImage": "./assets/images/cosmic-log.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.cosmicforge.pharmacymobileapp"
     },
     "web": {
       "output": "static",
@@ -51,7 +52,11 @@
     },
     "extra": {
       "apiUrl": "https://dev-api.cosmicforge-healthnet.com/api",
-      "socketUrl": "https://dev-api.cosmicforge-healthnet.com"
+      "socketUrl": "https://dev-api.cosmicforge-healthnet.com",
+      "router": {},
+      "eas": {
+        "projectId": "dad57773-5ac0-4a9f-a00e-15a6e20a1d5d"
+      }
     }
   }
 }
