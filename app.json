@@ -12,7 +12,7 @@
       "supportsTablet": true
     },
     "splash": {
-      "image": "./assets/images/cosmic-log.png",
+      "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
