@@ -4,7 +4,7 @@
     "slug": "pharmacy-mobile-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/cosmic-log.png",
+    "icon": "./assets/images/icon.png",
     "scheme": "pharmacymobileapp",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -19,9 +19,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/cosmic-log.png",
-        "backgroundImage": "./assets/images/cosmic-log.png",
-        "monochromeImage": "./assets/images/cosmic-log.png"
+        "foregroundImage": "./assets/images/icon.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -44,7 +42,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
